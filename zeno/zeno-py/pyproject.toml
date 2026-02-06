@@ -1,0 +1,27 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "zeno-ts"
+version = "0.1.0"
+description = "Zero-copy time series library for modern AI"
+requires-python = ">=3.8"
+dependencies = [
+    "polars>=0.20.0",
+    "pyarrow>=14.0.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-benchmark>=4.0",
+    "ruff>=0.1.0",
+]
+
+[tool.maturin]
+# Point to the Rust crate in ../zeno-core
+manifest-path = "../zeno-core/Cargo.toml"
+python-source = "."
+module-name = "zeno._zeno"

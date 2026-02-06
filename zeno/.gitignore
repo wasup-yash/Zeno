@@ -1,0 +1,84 @@
+# Rust build artifacts
+target/
+zeno-core/target/
+**/*.rs.bk
+
+# Python build and distribution directories
+build/
+dist/
+*.egg-info/
+zeno-py/build/
+zeno-py/dist/
+
+# Python cache directories
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+zeno-py/.venv/
+zeno-py/venv/
+.venv/
+venv/
+env/
+.env
+
+# Compiled Python extensions
+*.so
+*.dylib
+*.dll
+zeno-py/zeno/_zeno*.so
+zeno-py/zeno/_zeno*.pyd
+zeno-py/zeno/_zeno*.dylib
+
+# IDE directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.mypy_cache/
+
+# Maturin build artifacts
+.cargo/
+wheels/
+
+# Test coverage
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Benchmark results
+benchmarks/results/
+*.prof
+
+# Documentation build
+docs/_build/
+site/
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+.Trash-*

@@ -1,0 +1,25 @@
+[package]
+name = "zeno-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "zeno_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py38"] }
+arrow = "53.3.0"
+polars = { version = "0.45", features = ["lazy", "temporal"] }
+chrono = "0.4"
+rayon = "1.10"
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
