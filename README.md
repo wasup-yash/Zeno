@@ -27,7 +27,7 @@ Traditional time series libraries (sktime, Prophet, Darts) suffer from:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│              USER INTERFACE (Python)                 │
+│              USER INTERFACE (Python)                │
 │  • Simple API: Window, Scale, Molecule              │
 │  • Type-safe, IDE-friendly                          │
 └───────────────────┬─────────────────────────────────┘
@@ -36,33 +36,33 @@ Traditional time series libraries (sktime, Prophet, Darts) suffer from:
 ┌─────────────────────────────────────────────────────┐
 │            PyO3 BINDINGS (Rust ↔ Python)            │
 │  • Zero-copy memory sharing                         │
-│  • GIL released during Rust execution
-|  • True parallelism inside the Rust engine                     │
+│  • GIL released during Rust execution               |
+|  • True parallelism inside the Rust engine          │
 └───────────────────┬─────────────────────────────────┘
                     │
                     ▼
 ┌─────────────────────────────────────────────────────┐
-│               RUST CORE ENGINE                       │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  Window Operations (engine/window.rs)        │  │
-│  │  • Lag creation                              │  │
-│  │  • Rolling statistics                        │  │
-│  │  • Differencing                              │  │
-│  └──────────────────────────────────────────────┘  │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  Temporal Validator (validator/temporal.rs)  │  │
-│  │  • Train/test split enforcement              │  │
-│  │  • Feature timestamp checking                │  │
-│  │  • Leakage prevention                        │  │
-│  └──────────────────────────────────────────────┘  │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  Arrow Operations (engine/arrow_ops.rs)      │  │
-│  │  • Zero-copy buffer management               │  │
-│  │  • Columnar storage                          │  │
-│  └──────────────────────────────────────────────┘  
+│               RUST CORE ENGINE                      │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐   │
+│  │  Window Operations (engine/window.rs)        │   │
+│  │  • Lag creation                              │   │
+│  │  • Rolling statistics                        │   │
+│  │  • Differencing                              │   │
+│  └──────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐   │
+│  │  Temporal Validator (validator/temporal.rs)  │   │
+│  │  • Train/test split enforcement              │   │
+│  │  • Feature timestamp checking                │   │
+│  │  • Leakage prevention                        │   │
+│  └──────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐   │
+│  │  Arrow Operations (engine/arrow_ops.rs)      │   │
+│  │  • Zero-copy buffer management               │   │
+│  │  • Columnar storage                          │   │
+│  └──────────────────────────────────────────────┘   |
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -276,8 +276,7 @@ Built with:
 ## 📬 Contact
 
 - GitHub Issues: [Report bugs or request features]
-- Email: [your-email]
-- Twitter: [@zeno_ts]
+- Email: [yashsharmadev3@gmail.com]
 
 ---
 
