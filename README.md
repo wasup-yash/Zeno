@@ -1,4 +1,4 @@
-#  Zeno: The Zero-Copy Time Series Engine
+# Zeno: The Zero-Copy Time Series Engine
 
 **High-performance, audit-ready time series library built for Foundation Models and billion-row datasets.**
 
@@ -11,8 +11,6 @@ Traditional time series libraries (sktime, Prophet, Darts) suffer from:
 3. **Slow Windowing**: Creating lags/rolling features is the bottleneck in pipelines
 4. **Heavy Dependencies**: 500MB+ install size, 400+ package dependencies
 
-## ✨ The Solution: Zeno
-
 ### Phase 1: Zero-Copy Windowing + Temporal Validation
 
 **What We Built:**
@@ -23,7 +21,7 @@ Traditional time series libraries (sktime, Prophet, Darts) suffer from:
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -66,55 +64,6 @@ Traditional time series libraries (sktime, Prophet, Darts) suffer from:
 └─────────────────────────────────────────────────────┘
 ```
 
----
-
-## 🚀 Quick Start
-
-### Installation (One Command)
-
-```bash
-chmod +x setup_zeno.sh && ./setup_zeno.sh
-```
-
-This will:
-1. ✅ Install Rust toolchain
-2. ✅ Setup Python environment with `uv`
-3. ✅ Build the Rust core
-4. ✅ Install Zeno in development mode
-5. ✅ Create example files and tests
-
-### Your First Pipeline
-
-```python
-import zeno as zn
-from datetime import datetime, timedelta
-
-# 1. Create temporal data
-dates = [datetime(2024, 1, 1) + timedelta(days=i) for i in range(100)]
-values = [10.0 + i * 0.5 for i in range(100)]
-
-# 2. Build a zero-copy windowing pipeline
-window = zn.Window(lags=[1, 7, 14, 28])
-lag_features = window.transform(values)
-
-# 3. Enforce temporal split (prevent leakage)
-splitter = zn.TemporalSplitter()
-train_mask, test_mask = splitter.split(
-    dates, 
-    train_end_date=datetime(2024, 3, 1),
-    test_start_date=datetime(2024, 3, 2)
-)
-
-# 4. Validate features don't use future data
-try:
-    splitter.validate_feature(datetime(2024, 2, 15))  # ✓ Valid
-    splitter.validate_feature(datetime(2024, 3, 5))   # ✗ LEAKAGE!
-except ValueError as e:
-    print(f"Caught leakage: {e}")
-```
-
----
-
 ## Performance Benchmarks
 
 Run the included benchmark:
@@ -152,23 +101,23 @@ pytest ../tests -v
 
 ```
 zeno/
-├── zeno-core/              # Rust implementation
+├── zeno-core/              
 │   ├── src/
-│   │   ├── lib.rs          # PyO3 entry point
-│   │   ├── engine/         # Core windowing operations
+│   │   ├── lib.rs         
+│   │   ├── engine/         
 │   │   │   ├── window.rs
 │   │   │   └── arrow_ops.rs
-│   │   ├── validator/      # Temporal validation
+│   │   ├── validator/     
 │   │   │   ├── temporal.rs
 │   │   │   └── leakage.rs
 │   │   └── types.rs
 │   └── Cargo.toml
 │
-├── zeno-py/                # Python interface
+├── zeno-py/                
 │   ├── zeno/
-│   │   ├── atoms.py        # Window, Scale operations
-│   │   ├── molecule.py     # Pipeline composition
-│   │   └── validator.py    # Temporal validation
+│   │   ├── atoms.py        
+│   │   ├── molecule.py     
+│   │   └── validator.py    
 │   └── pyproject.toml
 │
 ├── examples/
@@ -190,42 +139,23 @@ zeno/
 - Temporal split enforcement
 - Basic leakage detection
 
-### Phase 2: Advanced Validation + Arrow Integration (Q2 2026)
+### Phase 2: Advanced Validation + Arrow Integration
 - Rolling hash comparisons for feature fingerprinting
 - Full Apache Arrow zero-copy pipeline
 - Polars native integration
 - Advanced leakage detection algorithms
 
-### Phase 3: Foundation Model Integration (Q3 2026)
+### Phase 3: Foundation Model Integration 
 - HuggingFace Chronos/Lag-Llama wrappers
 - GPU-accelerated inference
 - Batch prediction APIs
 
-### Phase 4: Zeno Cloud (Q4 2026)
+### Phase 4: Zeno Cloud
 - Serverless backtesting platform
 - Managed validation pipelines
 - Audit reports for compliance
 
 ---
-
-## Technical Deep Dive
-
-### Zero-Copy Architecture
-
-Traditional Approach (5 copies):
-```
-CSV → Pandas → NumPy → Feature Engineering → Model Input → GPU
- ^      ^        ^              ^                  ^        ^
-copy   copy     copy           copy              copy    copy
-```
-
-Zeno Approach (0 copies):
-```
-CSV → Arrow RecordBatch → Rust In-Place Ops → Arrow Output
- ^           ^                      ^                ^
-read     pointer pass           pointer ops     pointer pass
-```
-
 ### Temporal Validation
 
 **The Problem:**
@@ -247,32 +177,11 @@ window.transform(values, validator=splitter)
 
 ---
 
-## Contributing
-
-This is a Phase 1 prototype. Key areas for contribution:
-
-1. **Arrow Integration**: Full zero-copy pipeline with `arrow-rs`
-2. **More Validators**: Cross-validation, expanding window, etc.
-3. **Benchmarks**: Compare against Darts, Nixtla
-4. **Documentation**: Add tutorials for common patterns
-
----
-
 ## 📄 License
 
 MIT License - See LICENSE file
 
 ---
-
-## Acknowledgments
-
-Built with:
-- [PyO3](https://pyo3.rs/) - Rust ↔ Python bindings
-- [Apache Arrow](https://arrow.apache.org/) - Columnar memory format
-- [Polars](https://www.pola.rs/) - Fast DataFrame library
-
----
-
 ## 📬 Contact
 
 - GitHub Issues: [Report bugs or request features]
