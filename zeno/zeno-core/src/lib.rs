@@ -12,9 +12,9 @@ use validator::leakage::{LeakageDetector, RollingHashValidator};
 
 #[pymodule]
 fn _zeno(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<ArrowPipeline>()?;
     m.add_class::<WindowOp>()?;
     m.add_class::<TemporalValidator>()?;
-    m.add_class::<ArrowPipeline>()?;
     m.add_class::<PolarsWindowOp>()?;
     m.add_class::<PolarsValidator>()?;
     m.add_class::<LeakageDetector>()?;

@@ -1,6 +1,3 @@
-// Phase 2: Advanced Leakage Detection
-// src/validator/leakage.rs
-
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use std::collections::{HashMap, HashSet};
@@ -88,6 +85,7 @@ pub struct LeakageDetector {
 #[pymethods]
 impl LeakageDetector {
     #[new]
+    #[pyo3(signature = (threshold=None))]
     pub fn new(threshold: Option<f64>) -> Self {
         Self {
             train_fingerprints: Vec::new(),
@@ -198,6 +196,7 @@ pub struct RollingHashValidator {
 #[pymethods]
 impl RollingHashValidator {
     #[new]
+    #[pyo3(signature = (hash_size=None))]
     pub fn new(hash_size: Option<usize>) -> Self {
         Self {
             hash_size: hash_size.unwrap_or(100),
@@ -218,8 +217,13 @@ impl RollingHashValidator {
         Ok(self.known_hashes.contains(&hash))
     }
 
-    /// Compute rolling hash for a window
-    fn compute_hash(&self, values: &[f64]) -> u64 {
+    fn __repr__(&self) -> String {
+        format!("RollingHashValidator(known_windows={})", self.known_hashes.len())
+    }
+}
+
+impl RollingHashValidator {
+     fn compute_hash(&self, values: &[f64]) -> u64 {
         let mut hasher = DefaultHasher::new();
         
         for val in values.iter().take(self.hash_size.min(values.len())) {
@@ -227,9 +231,5 @@ impl RollingHashValidator {
         }
         
         hasher.finish()
-    }
-
-    fn __repr__(&self) -> String {
-        format!("RollingHashValidator(known_windows={})", self.known_hashes.len())
     }
 }

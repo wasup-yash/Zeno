@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
-use chrono::{DateTime, Utc, NaiveDateTime};
 
 #[pyclass]
 pub struct TemporalValidator {

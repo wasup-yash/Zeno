@@ -1,8 +1,4 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
-use arrow::array::{Array, Float64Array, PrimitiveArray};
-use arrow::datatypes::Float64Type;
-use std::sync::Arc;
 
 #[pyclass]
 pub struct WindowOp {
@@ -13,6 +9,8 @@ pub struct WindowOp {
 #[pymethods]
 impl WindowOp {
     #[new]
+    //explicit signature for Option argument
+    #[pyo3(signature = (lags, rolling_windows=None))]
     pub fn new(lags: Vec<usize>, rolling_windows: Option<Vec<usize>>) -> Self {
         Self {
             lags,
@@ -20,7 +18,6 @@ impl WindowOp {
         }
     }
 
-    /// Create lag features with zero-copy using Arrow arrays
     pub fn create_lags(&self, values: Vec<f64>) -> PyResult<Vec<Vec<Option<f64>>>> {
         let n = values.len();
         let mut result = Vec::with_capacity(self.lags.len());
@@ -36,7 +33,6 @@ impl WindowOp {
         Ok(result)
     }
 
-    /// Create rolling mean features
     pub fn rolling_mean(&self, values: Vec<f64>, window: usize) -> PyResult<Vec<Option<f64>>> {
         let n = values.len();
         let mut result = vec![None; n];

@@ -2,25 +2,44 @@
 Zeno: The Zero-Copy Time Series Engine
 """
 
-from zeno.atoms import Window, Scale
-from zeno.molecule import Molecule
-from zeno.validator import TemporalSplitter
+# 1. Import raw Rust classes from the compiled extension
+from ._zeno import (
+    ArrowPipeline,
+    PolarsWindowOp,
+    PolarsValidator,
+    LeakageDetector,
+    RollingHashValidator,
+    WindowOp,
+)
 
-# Phase 2 imports
-from zeno.advanced import (
+# 2. Import Python wrappers and logic
+from .advanced import (
     ArrowWindow,
-    PolarsWindow,
     AdvancedLeakageDetector,
+    PolarsWindow,
     PolarsTemporalValidator,
     ExpandingWindowValidator,
 )
 
-__version__ = "0.2.0"  # Updated version
+# 3. Import atoms (ensure these exist in zeno/atoms.py)
+try:
+    from .atoms import Window, Scale
+    from .molecule import Molecule
+    from .validator import TemporalSplitter
+except ImportError:
+    # Fallbacks if atoms.py is not yet finalized
+    Window = None
+    Scale = None
+
+__version__ = "0.2.0"
 
 __all__ = [
-    # Phase 1
-    "Window", "Scale", "Molecule", "TemporalSplitter",
-    # Phase 2
+    # Rust Core
+    "ArrowPipeline", "PolarsWindowOp", "PolarsValidator", 
+    "LeakageDetector", "RollingHashValidator",
+    # Python Wrappers
     "ArrowWindow", "PolarsWindow", "AdvancedLeakageDetector",
     "PolarsTemporalValidator", "ExpandingWindowValidator",
+    # Phase 1 Atoms
+    "Window", "Scale", "Molecule", "TemporalSplitter",
 ]
