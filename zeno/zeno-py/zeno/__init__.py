@@ -10,6 +10,21 @@ from ._zeno import (
     LeakageDetector,
     RollingHashValidator,
     WindowOp,
+    AuditReport,
+    # Models & Inference
+    Forecast,
+    BatchPredictor,
+    ChronosWrapper,
+    MoiraiWrapper,
+    # Infrastructure & Managed
+    GPUAccelerator,
+    TensorConverter,
+    ManagedPipeline,
+    ValidationScheduler,
+    
+    # Serverless
+    BacktestResult,
+    ServerlessConfig,
 )
 
 # 2. Import Python wrappers and logic
@@ -35,10 +50,15 @@ __version__ = "0.2.0"
 
 __all__ = [
     # Rust Core
-    "ArrowPipeline", "PolarsWindowOp", "PolarsValidator", 
+    "ArrowPipeline", "PolarsWindowOp", "WindowOp",
+    "PolarsValidator", "AuditReport",
+    "Forecast", "BatchPredictor", "ChronosWrapper", "MoiraiWrapper",
+    "GPUAccelerator", "TensorConverter", "ManagedPipeline", "ValidationScheduler",
+    "BacktestResult", "ServerlessConfig", 
     "LeakageDetector", "RollingHashValidator",
     # Python Wrappers
     "ArrowWindow", "PolarsWindow", "AdvancedLeakageDetector",
+    "AuditManager", "GPUManager", "ManagedExecutor",
     "PolarsTemporalValidator", "ExpandingWindowValidator",
     # Phase 1 Atoms
     "Window", "Scale", "Molecule", "TemporalSplitter",

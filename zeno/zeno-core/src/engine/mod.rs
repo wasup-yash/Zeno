@@ -1,3 +1,9 @@
 pub mod window;
 pub mod arrow_ops;
-pub mod polars_ops;  // Add this line
+pub mod polars_ops; 
+pub mod foundation;
+pub mod gpu;
+pub mod batch;
+pub mod serverless;
+pub mod managed;
+pub mod audit;

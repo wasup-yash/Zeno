@@ -2,7 +2,8 @@
 Atomic operations for time series transformations
 """
 from typing import List, Optional
-from zeno._zeno import WindowOp as _WindowOp
+from ._zeno import WindowOp as _WindowOp
+from ._zeno import ArrowPipeline as _ArrowCore
 
 class Window:
     """Create lag and rolling window features with zero-copy"""
@@ -23,6 +24,15 @@ class Window:
     def __repr__(self):
         return f"Window(lags={self.lags}, rolling={self.rolling})"
 
+class EMA:
+    """Exponential Moving Average Atom"""
+    
+    def __init__(self, alpha: float = 0.3):
+        self.alpha = alpha
+        self._core = _ArrowCore()
+    
+    def transform(self, values: List[float]):
+        return self._core.ema_simple(values, self.alpha)
 
 class Scale:
     """Placeholder for scaling operations"""

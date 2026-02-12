@@ -1,14 +1,14 @@
 """
 Temporal validation and leakage detection
 """
-from zeno._zeno import TemporalValidator as _TemporalValidator
+from ._zeno import PolarsValidator as _PolarsValidator
 from datetime import datetime
 
 class TemporalSplitter:
     """Enforce temporal ordering in train/test splits"""
     
     def __init__(self):
-        self._core = _TemporalValidator()
+        self._core = _PolarsValidator()
     
     def split(self, timestamps, train_end_date: datetime, test_start_date: datetime):
         """
@@ -32,7 +32,15 @@ class TemporalSplitter:
         
         return train_mask, test_mask
     
-    def validate_feature(self, feature_date: datetime):
-        """Check if a feature uses future data"""
-        ts = int(feature_date.timestamp())
-        return self._core.check_feature_window(ts)
+    # def validate_feature(self, feature_date: datetime):
+    #     """Check if a feature uses future data"""
+    #     ts = int(feature_date.timestamp())
+    #     return self._core.check_feature_window(ts)
+    def validate_split(self, df: pl.DataFrame, time_col: str, train_end: datetime, test_start: datetime):
+        """Validate that test set starts strictly after training ends"""
+        return self._core.validate_temporal_split(
+            df, 
+            time_col, 
+            int(train_end.timestamp()), 
+            int(test_start.timestamp())
+        )

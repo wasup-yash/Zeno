@@ -8,15 +8,21 @@ version = "0.1.0"
 description = "Zero-copy time series library for modern AI"
 requires-python = ">=3.8"
 dependencies = [
-    "polars>=0.20.0",
-    "pyarrow>=14.0.0",
-    "numpy>=1.24.0",
+    "polars>=1.38.1",
+    "pyarrow>=23.0.0",
+    "numpy>=1.17.0",
+    "transformers>=5.1.0",    # Remove pin
+    "gluonts>=0.14.3",         # Remove pin
+    "uni2ts",         # Remove pin
+    "torch>=2.0.0",
+    "boto3>=1.28.0",
+    "weasyprint>=68.1",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
-    "pytest-benchmark>=4.0",
+    "pytest>=9.0.2",
+    "pytest-benchmark>=5.2.3",
     "ruff>=0.1.0",
 ]
 

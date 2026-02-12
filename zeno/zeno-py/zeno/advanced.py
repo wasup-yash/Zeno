@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 import polars as pl
 import pyarrow as pa
@@ -10,6 +10,9 @@ from ._zeno import (
     RollingHashValidator,
     PolarsWindowOp,
     PolarsValidator,
+    GPUAccelerator,
+    ManagedPipeline,
+    AuditReport,
 )
 
 class ArrowWindow:
@@ -135,3 +138,36 @@ def create_polars_pipeline(
 ) -> PolarsWindow:
     """Create Polars-native window pipeline"""
     return PolarsWindow(lags, rolling_windows)
+
+class GPUManager:
+    """Managed GPU Resources"""
+    def __init__(self, device: str = "cuda:0"):
+        self._accel = GPUAccelerator(device=device)
+    
+    def stats(self):
+        if self._accel.is_available():
+            alloc, res = self._accel.get_memory_info()
+            return {"allocated_mb": alloc / 1024**2, "reserved_mb": res / 1024**2}
+        return {"status": "GPU not available"}
+
+class AuditManager:
+    """Generate Compliance Reports"""
+    def __init__(self, report_id: str):
+        self.report = AuditReport(report_id)
+    
+    def log_metric(self, name: str, value: float):
+        self.report.add_metric(name, value)
+    
+    def finalize(self) -> str:
+        return self.report.summary
+
+class ManagedExecutor:
+    """Execute validation pipelines with automatic scheduling"""
+    def __init__(self, pipeline_id: str):
+        self._pipe = ManagedPipeline(pipeline_id)
+    
+    def add_validation_step(self, name: str, step_type: str = "temporal"):
+        self._pipe.add_step(name, step_type)
+    
+    def run(self, data: Any):
+        return self._pipe.execute(data)

@@ -19,7 +19,8 @@ impl ArrowPipeline {
         }
     }
 
-    /// Python-facing: create lags via Vec<f64> (RecordBatch can't cross PyO3 boundary)
+    // ── Phase 2: Python-facing API (Vec-based for PyO3 compatibility) ──────
+
     pub fn create_lags_simple(
         &self,
         values: Vec<f64>,
@@ -37,7 +38,6 @@ impl ArrowPipeline {
         Ok(result)
     }
 
-    /// Python-facing: rolling mean
     pub fn rolling_mean_simple(
         &self,
         values: Vec<f64>,
@@ -52,7 +52,6 @@ impl ArrowPipeline {
         Ok(result)
     }
 
-    /// Python-facing: EMA
     pub fn ema_simple(
         &self,
         values: Vec<f64>,
@@ -70,14 +69,67 @@ impl ArrowPipeline {
         Ok(result)
     }
 
+    // ── Phase 2: Advanced features ──────────────────────────────────────────
+
+    /// Double exponential smoothing (Holt's method)
+    pub fn double_exponential_smoothing(
+        &self,
+        values: Vec<f64>,
+        alpha: f64,
+        beta: f64,
+    ) -> PyResult<Vec<Option<f64>>> {
+        if values.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut result: Vec<Option<f64>> = Vec::with_capacity(values.len());
+        let mut level = values[0];
+        let mut trend = if values.len() > 1 { values[1] - values[0] } else { 0.0 };
+
+        result.push(Some(level));
+
+        for &value in &values[1..] {
+            let last_level = level;
+            level = alpha * value + (1.0 - alpha) * (level + trend);
+            trend = beta * (level - last_level) + (1.0 - beta) * trend;
+            result.push(Some(level + trend));
+        }
+
+        Ok(result)
+    }
+
+    /// Parallel lag creation with Rayon
+    pub fn create_lags_parallel(
+        &self,
+        values: Vec<f64>,
+        lags: Vec<usize>,
+    ) -> PyResult<Vec<Vec<Option<f64>>>> {
+        let n = values.len();
+        
+        let result: Vec<Vec<Option<f64>>> = lags
+            .par_iter()
+            .map(|&lag| {
+                let mut lagged = vec![None; n];
+                for i in lag..n {
+                    lagged[i] = Some(values[i - lag]);
+                }
+                lagged
+            })
+            .collect();
+
+        Ok(result)
+    }
+
     fn __repr__(&self) -> String {
         "ArrowPipeline()".to_string()
     }
 }
 
-// ── Internal Arrow RecordBatch operations (called from Rust, not Python) ────
+// ── Phase 2: Internal Arrow RecordBatch operations ──────────────────────────
+// These are used internally for Rust-to-Rust pipelines
+// Not exposed to Python due to RecordBatch FFI limitations
 
-/// Create lag features on a RecordBatch with parallel execution
+/// Create lag features on RecordBatch with parallel execution
 pub fn create_lags_record_batch(
     batch: &RecordBatch,
     column_name: &str,
@@ -113,6 +165,7 @@ pub fn create_lags_record_batch(
             Arc::new(builder.finish()) as ArrayRef
         })
         .collect();
+
     let mut fields: Vec<Arc<Field>> = batch.schema().fields().to_vec();
     for &lag in lags.iter() {
         fields.push(Arc::new(Field::new(
@@ -128,7 +181,7 @@ pub fn create_lags_record_batch(
     RecordBatch::try_new(Arc::new(Schema::new(fields)), all_columns)
 }
 
-/// Rolling mean on a RecordBatch
+/// Rolling mean on RecordBatch
 pub fn rolling_mean_record_batch(
     batch: &RecordBatch,
     column_name: &str,
@@ -172,7 +225,6 @@ pub fn rolling_mean_record_batch(
 
     let rolling_array = Arc::new(builder.finish()) as ArrayRef;
 
-    // FIX: Vec<Arc<Field>>
     let mut fields: Vec<Arc<Field>> = batch.schema().fields().to_vec();
     fields.push(Arc::new(Field::new(
         format!("{}_rolling_mean_{}", column_name, window),
@@ -186,7 +238,7 @@ pub fn rolling_mean_record_batch(
     RecordBatch::try_new(Arc::new(Schema::new(fields)), columns)
 }
 
-/// EMA on a RecordBatch
+/// EMA on RecordBatch
 pub fn ema_record_batch(
     batch: &RecordBatch,
     column_name: &str,
@@ -233,4 +285,18 @@ pub fn ema_record_batch(
     columns.push(ema_array);
 
     RecordBatch::try_new(Arc::new(Schema::new(fields)), columns)
+}
+
+// ── Phase 3: Foundation Model Integration (Placeholder) ─────────────────────
+
+/// Prepare batch for Foundation Model input
+/// Will be implemented in Phase 3 with GPU tensors
+pub fn prepare_for_model_inference(
+    _batch: &RecordBatch,
+    _lookback_window: usize,
+) -> Result<Vec<Vec<f64>>, arrow::error::ArrowError> {
+    // TODO Phase 3: Convert to tensor format for Chronos/Lag-Llama
+    Err(arrow::error::ArrowError::NotYetImplemented(
+        "Foundation model integration planned for Phase 3".to_string()
+    ))
 }
