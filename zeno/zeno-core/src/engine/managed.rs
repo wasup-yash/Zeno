@@ -39,9 +39,9 @@ impl ManagedPipeline {
     pub fn execute(
         &self,
         py: Python<'_>,
-        data: &PyAny,
+        data: Bound<'_, PyAny>,
     ) -> PyResult<PyObject> {
-        let mut result = data.clone().into();
+        let mut result: PyObject = data.clone().unbind();
         
         for step in &self.steps {
             let parts: Vec<&str> = step.split(':').collect();
@@ -186,7 +186,7 @@ impl ValidationScheduler {
     /// Schedule validation pipeline
     pub fn schedule_run(
         &self,
-        py: Python<'_>,
+        _py: Python<'_>,
         cron_expression: Option<String>,
     ) -> PyResult<String> {
         let schedule_expr = cron_expression.unwrap_or_else(|| 

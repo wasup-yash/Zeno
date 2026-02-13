@@ -87,7 +87,7 @@ impl BacktestRunner {
     pub fn run_expanding_window(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         data: Vec<f64>,
         min_train: usize,
     ) -> PyResult<Vec<BacktestResult>> {
@@ -128,7 +128,7 @@ impl BacktestRunner {
     pub fn run_rolling_window(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         data: Vec<f64>,
         window_size: usize,
     ) -> PyResult<Vec<BacktestResult>> {
@@ -224,14 +224,14 @@ impl ServerlessConfig {
     pub fn submit_job(
         &self,
         py: Python<'_>,
-        job_config: &PyDict,
+        job_config: Bound<'_, PyDict>,
     ) -> PyResult<String> {
         let boto3 = py.import_bound("boto3")?;
         let lambda_client = boto3.call_method1("client", ("lambda",))?;
         
         // Prepare payload
         let payload = PyDict::new_bound(py);
-        payload.set_item("config", job_config)?;
+        payload.set_item("config", &job_config)?;
         payload.set_item("timeout", self.timeout)?;
         
         let json = py.import_bound("json")?;
@@ -250,11 +250,11 @@ impl ServerlessConfig {
             })
         )?;
         
-        let request_id: String = response.get_item("ResponseMetadata")?
-            .unwrap()
-            .get_item("RequestId")?
-            .unwrap()
-            .extract()?;
+        let metadata = response.get_item("ResponseMetadata")?
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("ResponseMetadata not found"))?;
+        let request_id: String = metadata.get_item("RequestId")?
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("RequestId not found"))?
+        .extract()?;
         
         Ok(request_id)
     }

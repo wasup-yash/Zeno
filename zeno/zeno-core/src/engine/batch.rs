@@ -1,6 +1,3 @@
-// Phase 3: Batch Prediction APIs
-// src/engine/batch.rs
-
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rayon::prelude::*;
@@ -71,7 +68,7 @@ impl BatchPredictor {
     pub fn predict_batch(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         series_list: Vec<Vec<f64>>,
         horizon: usize,
     ) -> PyResult<Vec<Forecast>> {
@@ -86,7 +83,7 @@ impl BatchPredictor {
     fn predict_batch_cpu(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         series_list: Vec<Vec<f64>>,
         horizon: usize,
     ) -> PyResult<Vec<Forecast>> {
@@ -108,7 +105,7 @@ impl BatchPredictor {
     fn predict_batch_gpu(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         series_list: Vec<Vec<f64>>,
         horizon: usize,
     ) -> PyResult<Vec<Forecast>> {
@@ -141,7 +138,7 @@ impl BatchPredictor {
     pub fn predict_stream(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         series_iter: Vec<Vec<f64>>,
         horizon: usize,
         chunk_size: usize,
@@ -189,7 +186,7 @@ impl EnsemblePredictor {
     pub fn predict_ensemble(
         &self,
         py: Python<'_>,
-        model_dict: &PyDict,
+        model_dict: Bound<'_, PyDict>,
         series: Vec<f64>,
         horizon: usize,
     ) -> PyResult<Forecast> {

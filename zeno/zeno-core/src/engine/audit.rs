@@ -117,7 +117,7 @@ impl ComplianceChecker {
         train_dates: Vec<String>,
         test_dates: Vec<String>,
     ) -> PyResult<bool> {
-        let datetime_mod = py.import_bound("datetime")?;
+        let _datetime_mod = py.import_bound("datetime")?;
         
         // Parse dates
         let train_max = train_dates.iter().max()
@@ -159,17 +159,17 @@ impl ComplianceChecker {
     pub fn run_compliance_check(
         &self,
         py: Python<'_>,
-        data_config: &PyDict,
+        data_config: Bound<'_, PyDict>,
     ) -> PyResult<AuditReport> {
         let mut report = AuditReport::new(format!("audit_{}", Utc::now().timestamp()));
         
         // Extract data
         let train_dates: Vec<String> = data_config.get_item("train_dates")?
-            .unwrap()
-            .extract()?;
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("train_dates not found"))?
+        .extract()?;
         let test_dates: Vec<String> = data_config.get_item("test_dates")?
-            .unwrap()
-            .extract()?;
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("test_dates not found"))?
+        .extract()?;
         
         // Check temporal leakage
         let no_leakage = self.check_temporal_leakage(py, train_dates, test_dates)?;
@@ -314,7 +314,7 @@ impl ReportGenerator {
         report: &AuditReport,
         output_path: &str,
     ) -> PyResult<String> {
-        let html = self.generate_html(report)?;
+        let _html = self.generate_html(report)?;
         
         // In production, would use weasyprint or similar
         let _weasyprint = py.import_bound("weasyprint");

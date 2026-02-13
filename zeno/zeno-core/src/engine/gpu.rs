@@ -1,6 +1,3 @@
-// Phase 3: GPU-Accelerated Inference
-// src/engine/gpu.rs
-
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -40,7 +37,7 @@ impl GPUAccelerator {
     }
 
     /// Move tensor to GPU
-    pub fn to_gpu(&self, py: Python<'_>, tensor: &PyAny) -> PyResult<PyObject> {
+    pub fn to_gpu(&self, py: Python<'_>, tensor: Bound<'_, PyAny>) -> PyResult<PyObject> {
         let moved = tensor.call_method1("to", (&self.device,))?;
         Ok(moved.into())
     }
@@ -49,7 +46,7 @@ impl GPUAccelerator {
     pub fn batch_inference_gpu(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         inputs: Vec<Vec<f64>>,
     ) -> PyResult<Vec<Vec<f64>>> {
         let torch = py.import_bound("torch")?;
@@ -114,7 +111,7 @@ impl TensorConverter {
         let tensor = torch.call_method1("tensor", (values,))?;
         
         // Set dtype
-        let dtype_obj = torch.getattr(&self.dtype)?;
+        let dtype_obj = torch.getattr(self.dtype.as_str())?;
         let typed_tensor = tensor.call_method1("to", (dtype_obj,))?;
         
         Ok(typed_tensor.into())
@@ -124,13 +121,13 @@ impl TensorConverter {
     pub fn to_tensor_2d(&self, py: Python<'_>, values: Vec<Vec<f64>>) -> PyResult<PyObject> {
         let torch = py.import_bound("torch")?;
         let tensor = torch.call_method1("tensor", (values,))?;
-        let dtype_obj = torch.getattr(&self.dtype)?;
+        let dtype_obj = torch.getattr(self.dtype.as_str())?;
         let typed_tensor = tensor.call_method1("to", (dtype_obj,))?;
         Ok(typed_tensor.into())
     }
 
     /// Reshape tensor for model input
-    pub fn reshape(&self, tensor: &PyAny, shape: Vec<i64>) -> PyResult<PyObject> {
+    pub fn reshape(&self, tensor: Bound<'_, PyAny>, shape: Vec<i64>) -> PyResult<PyObject> {
         let reshaped = tensor.call_method1("reshape", (shape,))?;
         Ok(reshaped.into())
     }

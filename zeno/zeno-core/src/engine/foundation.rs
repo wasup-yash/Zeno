@@ -58,7 +58,7 @@ impl ChronosWrapper {
     pub fn forecast(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         history: Vec<f64>,
     ) -> PyResult<Vec<f64>> {
         let input_windows = self.prepare_input(history)?;
@@ -67,7 +67,7 @@ impl ChronosWrapper {
 
         // Convert to tensor via numpy
         let np = py.import_bound("numpy")?;
-        let input_tensor = np.call_method1("array", (last_window,))?;
+        let input_tensor = np.call_method1("array", (&last_window,))?;
 
         // Run inference
         let output = model.call_method1("generate", (input_tensor, self.prediction_length))?;
@@ -118,7 +118,7 @@ impl LagLlamaWrapper {
     pub fn zero_shot_forecast(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         history: Vec<f64>,
         num_samples: usize,
     ) -> PyResult<Vec<Vec<f64>>> {
@@ -197,7 +197,7 @@ impl MoiraiWrapper {
     pub fn forecast(
         &self,
         py: Python<'_>,
-        model: &PyAny,
+        model: Bound<'_, PyAny>,
         history: Vec<f64>,
         frequency: &str,
     ) -> PyResult<Vec<Vec<f64>>> {
@@ -213,7 +213,7 @@ impl MoiraiWrapper {
         let dataset = gluonts_data.call_method1("ListDataset", (vec![entry], frequency))?;
 
         // Run prediction
-        let forecasts = model.call_method1("predict", (dataset,))?;
+        let forecasts = model.call_method1("predict", (&dataset,))?;
         
         // Extract samples from the Forecast object
         let forecast_list: Vec<&PyAny> = forecasts.call_method0("__iter__")?.extract()?;
