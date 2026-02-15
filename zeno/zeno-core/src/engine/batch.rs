@@ -146,7 +146,7 @@ impl BatchPredictor {
         let mut all_forecasts = Vec::new();
         
         for chunk in series_iter.chunks(chunk_size) {
-            let chunk_forecasts = self.predict_batch(py, model, chunk.to_vec(), horizon)?;
+            let chunk_forecasts = self.predict_batch(py, model.clone(), chunk.to_vec(), horizon)?;
             all_forecasts.extend(chunk_forecasts);
         }
         

@@ -52,7 +52,7 @@ impl GPUAccelerator {
         let torch = py.import_bound("torch")?;
         
         // Convert to tensor
-        let input_tensor = torch.call_method1("tensor", (inputs,))?;
+        let input_tensor = torch.call_method1("tensor", (inputs.clone(),))?;
         let input_gpu = input_tensor.call_method1("to", (&self.device,))?;
         
         // Run inference in batches

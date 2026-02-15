@@ -287,16 +287,33 @@ pub fn ema_record_batch(
     RecordBatch::try_new(Arc::new(Schema::new(fields)), columns)
 }
 
-// ── Phase 3: Foundation Model Integration (Placeholder) ─────────────────────
-
-/// Prepare batch for Foundation Model input
-/// Will be implemented in Phase 3 with GPU tensors
 pub fn prepare_for_model_inference(
-    _batch: &RecordBatch,
-    _lookback_window: usize,
-) -> Result<Vec<Vec<f64>>, arrow::error::ArrowError> {
-    // TODO Phase 3: Convert to tensor format for Chronos/Lag-Llama
-    Err(arrow::error::ArrowError::NotYetImplemented(
-        "Foundation model integration planned for Phase 3".to_string()
-    ))
-}
+        batch: &RecordBatch,
+        column_name: &str,
+        lookback_window: usize,
+    ) -> PyResult<Vec<Vec<f64>>> {
+        let column = batch.column_by_name(column_name)
+            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                format!("Column {} not found", column_name)
+            ))?;
+
+        let float_array = column.as_any().downcast_ref::<Float64Array>()
+            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyTypeError, _>("Column must be Float64"))?;
+
+        let data: Vec<f64> = (0..float_array.len())
+            .map(|i| if float_array.is_null(i) { 0.0 } else { float_array.value(i) })
+            .collect();
+
+        if data.len() < lookback_window {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Data shorter than lookback window"));
+        }
+
+        // Generate sliding windows
+        let mut sequences = Vec::new();
+        for i in 0..=(data.len() - lookback_window) {
+            let window = data[i..i + lookback_window].to_vec();
+            sequences.push(window);
+        }
+
+        Ok(sequences)
+    }

@@ -199,7 +199,7 @@ impl BacktestRunner {
 
 #[pyclass]
 pub struct ServerlessConfig {
-    lambda_function: String,
+    lambda_function: &str,
     timeout: u32,
     memory_mb: u32,
 }
@@ -209,12 +209,12 @@ impl ServerlessConfig {
     #[new]
     #[pyo3(signature = (lambda_function="zeno-backtest", timeout=900, memory_mb=3008))]
     pub fn new(
-        lambda_function: Option<String>,
+        lambda_function: Option<&str>,
         timeout: Option<u32>,
         memory_mb: Option<u32>,
     ) -> Self {
         Self {
-            lambda_function: lambda_function.unwrap_or_else(|| "zeno-backtest".to_string()),
+            lambda_function: lambda_function.unwrap_or_else(|| "zeno-backtest".str()),
             timeout: timeout.unwrap_or(900),
             memory_mb: memory_mb.unwrap_or(3008),
         }
