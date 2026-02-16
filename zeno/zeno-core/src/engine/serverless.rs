@@ -1,6 +1,3 @@
-// Phase 4: Serverless Backtesting
-// src/engine/serverless.rs
-
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use std::collections::HashMap;
@@ -86,7 +83,7 @@ impl BacktestRunner {
     /// Run expanding window backtest
     pub fn run_expanding_window(
         &self,
-        py: Python<'_>,
+        _py: Python<'_>,
         model: Bound<'_, PyAny>,
         data: Vec<f64>,
         min_train: usize,
@@ -101,10 +98,10 @@ impl BacktestRunner {
                 break;
             }
             
-            let train_data = &data[..train_end];
+            let train_data = data[..train_end].to_vec();
             let test_data = &data[train_end..test_end];
             
-            // Fit model
+            // Fit model - pass Vec instead of slice
             model.call_method1("fit", (train_data,))?;
             
             // Predict
@@ -127,7 +124,7 @@ impl BacktestRunner {
     /// Run rolling window backtest
     pub fn run_rolling_window(
         &self,
-        py: Python<'_>,
+        _py: Python<'_>,
         model: Bound<'_, PyAny>,
         data: Vec<f64>,
         window_size: usize,
@@ -143,9 +140,10 @@ impl BacktestRunner {
                 break;
             }
             
-            let train_data = &data[train_start..train_end];
+            let train_data = data[train_start..train_end].to_vec();
             let test_data = &data[train_end..test_end];
             
+            // Fit model - pass Vec instead of slice
             model.call_method1("fit", (train_data,))?;
             let preds_obj = model.call_method1("predict", (self.test_size,))?;
             let predictions: Vec<f64> = preds_obj.extract()?;
@@ -157,6 +155,16 @@ impl BacktestRunner {
         Ok(results)
     }
 
+    fn __repr__(&self) -> String {
+        format!(
+            "BacktestRunner(n_splits={}, test_size={}, step={})",
+            self.n_splits, self.test_size, self.step_size
+        )
+    }
+}
+
+// Move compute_metrics outside of #[pymethods] block
+impl BacktestRunner {
     /// Compute common metrics
     fn compute_metrics(&self, predictions: &[f64], actuals: &[f64]) -> HashMap<String, f64> {
         let mut metrics = HashMap::new();
@@ -188,81 +196,49 @@ impl BacktestRunner {
         
         metrics
     }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "BacktestRunner(n_splits={}, test_size={}, step={})",
-            self.n_splits, self.test_size, self.step_size
-        )
-    }
 }
 
 #[pyclass]
 pub struct ServerlessConfig {
-    lambda_function: &str,
-    timeout: u32,
-    memory_mb: u32,
+    pub lambda_function: String,
+    pub timeout: u32,
+    pub memory_mb: u32,
 }
 
 #[pymethods]
 impl ServerlessConfig {
     #[new]
-    #[pyo3(signature = (lambda_function="zeno-backtest", timeout=900, memory_mb=3008))]
+    #[pyo3(signature = (lambda_function=None, timeout=None, memory_mb=None))]
     pub fn new(
-        lambda_function: Option<&str>,
+        lambda_function: Option<String>,
         timeout: Option<u32>,
         memory_mb: Option<u32>,
     ) -> Self {
         Self {
-            lambda_function: lambda_function.unwrap_or_else(|| "zeno-backtest".str()),
-            timeout: timeout.unwrap_or(900),
+            lambda_function: lambda_function.unwrap_or_else(|| "zeno-backtest".to_string()),
+            timeout: timeout.unwrap_or(300),
             memory_mb: memory_mb.unwrap_or(3008),
         }
     }
 
-    /// Submit backtest job to AWS Lambda
-    pub fn submit_job(
-        &self,
-        py: Python<'_>,
-        job_config: Bound<'_, PyDict>,
-    ) -> PyResult<String> {
+    pub fn submit_job(&self, py: Python<'_>, job_config: Bound<'_, PyDict>) -> PyResult<String> {
         let boto3 = py.import_bound("boto3")?;
         let lambda_client = boto3.call_method1("client", ("lambda",))?;
         
-        // Prepare payload
-        let payload = PyDict::new_bound(py);
-        payload.set_item("config", &job_config)?;
-        payload.set_item("timeout", self.timeout)?;
-        
         let json = py.import_bound("json")?;
-        let payload_str = json.call_method1("dumps", (payload,))?;
+        let payload_str = json.call_method1("dumps", (job_config,))?;
         
-        // Invoke Lambda
-        let response = lambda_client.call_method(
-            "invoke",
-            (),
-            Some(&{
-                let kwargs = PyDict::new_bound(py);
-                kwargs.set_item("FunctionName", &self.lambda_function)?;
-                kwargs.set_item("InvocationType", "Event")?;
-                kwargs.set_item("Payload", payload_str)?;
-                kwargs
-            })
-        )?;
+        let kwargs = PyDict::new_bound(py);
+        kwargs.set_item("FunctionName", &self.lambda_function)?;
+        kwargs.set_item("InvocationType", "Event")?;
+        kwargs.set_item("Payload", payload_str)?;
+
+        let response = lambda_client.call_method("invoke", (), Some(&kwargs))?;
         
-        let metadata = response.get_item("ResponseMetadata")?
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("ResponseMetadata not found"))?;
-        let request_id: String = metadata.get_item("RequestId")?
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("RequestId not found"))?
-        .extract()?;
+        // Fix for Bound API item access
+        let metadata = response.get_item("ResponseMetadata")?;
+        let request_id: String = metadata.get_item("RequestId")?.extract()?;
         
         Ok(request_id)
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "ServerlessConfig(function='{}', timeout={}s, memory={}MB)",
-            self.lambda_function, self.timeout, self.memory_mb
-        )
     }
 }

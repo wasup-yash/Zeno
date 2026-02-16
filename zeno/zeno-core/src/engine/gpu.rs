@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 
 #[pyclass]
 pub struct GPUAccelerator {
@@ -37,7 +36,7 @@ impl GPUAccelerator {
     }
 
     /// Move tensor to GPU
-    pub fn to_gpu(&self, py: Python<'_>, tensor: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    pub fn to_gpu(&self, _py: Python<'_>, tensor: Bound<'_, PyAny>) -> PyResult<PyObject> {
         let moved = tensor.call_method1("to", (&self.device,))?;
         Ok(moved.into())
     }

@@ -55,25 +55,34 @@ impl ChronosWrapper {
     }
 
     /// Forecast future values
+    
     pub fn forecast(
         &self,
         py: Python<'_>,
         model: Bound<'_, PyAny>,
         history: Vec<f64>,
-    ) -> PyResult<Vec<f64>> {
-        let input_windows = self.prepare_input(history)?;
-        let last_window = input_windows.last()
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("No windows created"))?;
+        frequency: &str,
+    ) -> PyResult<Vec<Vec<f64>>> {
+        let gluonts_data = py.import_bound("gluonts.dataset.common")?;
+        
+        let entry = PyDict::new_bound(py);
+        // Convert Vec<f64> to Python list to satisfy IntoPy bound
+        entry.set_item("target", history.to_object(py))?;
+        entry.set_item("start", "2024-01-01")?;
+        entry.set_item("freq", frequency)?;
 
-        // Convert to tensor via numpy
-        let np = py.import_bound("numpy")?;
-        let input_tensor = np.call_method1("array", (&last_window,))?;
+        let dataset = gluonts_data.call_method1("ListDataset", (vec![entry], frequency))?;
+        let forecasts = model.call_method1("predict", (dataset,))?;
+        
+        // Correctly extract from iterator in Bound API
+        let forecast_iter = forecasts.call_method0("__iter__")?;
+        let mut samples: Vec<Vec<f64>> = Vec::new();
 
-        // Run inference
-        let output = model.call_method1("generate", (input_tensor, self.prediction_length))?;
-        let forecast: Vec<f64> = output.extract()?;
-
-        Ok(forecast)
+        if let Ok(first_forecast) = forecast_iter.call_method0("__next__") {
+            samples = first_forecast.getattr("samples")?.extract()?;
+        }
+        
+        Ok(samples)
     }
 
     fn __repr__(&self) -> String {
@@ -216,10 +225,9 @@ impl MoiraiWrapper {
         let forecasts = model.call_method1("predict", (&dataset,))?;
         
         // Extract samples from the Forecast object
-        let forecast_list: Vec<&PyAny> = forecasts.call_method0("__iter__")?.extract()?;
-        let first_forecast = forecast_list.get(0)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("No forecast generated"))?;
         
+        let forecast_iter = forecasts.call_method0("__iter__")?;
+        let first_forecast = forecast_iter.call_method0("__next__")?;
         let samples: Vec<Vec<f64>> = first_forecast.getattr("samples")?.extract()?;
         Ok(samples)
     }

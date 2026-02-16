@@ -184,6 +184,7 @@ impl ValidationScheduler {
     }
 
     /// Schedule validation pipeline
+    #[pyo3(signature = (cron_expression=None))]
     pub fn schedule_run(
         &self,
         _py: Python<'_>,

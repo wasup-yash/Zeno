@@ -168,8 +168,10 @@ pub struct EnsemblePredictor {
 }
 
 #[pymethods]
+
 impl EnsemblePredictor {
     #[new]
+    #[pyo3(signature = (models, weights=None))]
     pub fn new(models: Vec<String>, weights: Option<Vec<f64>>) -> PyResult<Self> {
         let w = weights.unwrap_or_else(|| vec![1.0 / models.len() as f64; models.len()]);
         
