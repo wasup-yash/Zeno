@@ -21,43 +21,6 @@ uv pip install pytest pytest-benchmark
 pytest ../tests -v
 ```
 
----
-
-## 🛠️ Project Structure
-
-```
-zeno/
-├── zeno-core/              
-│   ├── src/
-│   │   ├── lib.rs         
-│   │   ├── engine/         
-│   │   │   ├── window.rs
-│   │   │   └── arrow_ops.rs
-│   │   ├── validator/     
-│   │   │   ├── temporal.rs
-│   │   │   └── leakage.rs
-│   │   └── types.rs
-│   └── Cargo.toml
-│
-├── zeno-py/                
-│   ├── zeno/
-│   │   ├── atoms.py        
-│   │   ├── molecule.py     
-│   │   └── validator.py    
-│   └── pyproject.toml
-│
-├── examples/
-│   └── quickstart.py
-│
-├── tests/
-│   ├── test_window.py
-│   └── test_temporal.py
-│
-└── benchmarks/
-    └── benchmark_comparison.py
-```
-
-
 ## 🗺️ Roadmap
 
 ### Phase 1: Zero-Copy Windowing + Validation (Current)
@@ -106,12 +69,6 @@ window.transform(values, validator=splitter)
 ## 📄 License
 
 MIT License - See LICENSE file
-
----
-## 📬 Contact
-
-- GitHub Issues: [Report bugs or request features]
-- Email: [yashsharmadev3@gmail.com]
 
 ---
 
