@@ -1,5 +1,7 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+
+from click import Tuple
 import polars as pl
 import pyarrow as pa
 
@@ -70,11 +72,30 @@ class PolarsWindow:
         return result
 
 class PolarsTemporalValidator:
+    """Zero‑copy temporal validation for Polars DataFrames."""
+
     def __init__(self):
         self._validator = PolarsValidator()
-    
-    def validate_split(self, df: pl.DataFrame, time_col: str, train_end: datetime, test_start: datetime) -> bool:
-        return self._validator.validate_temporal_split(df, time_col, int(train_end.timestamp()), int(test_start.timestamp()))
+
+    def validate_split(
+        self, df: pl.DataFrame, time_col: str, train_end: datetime, test_start: datetime
+    ) -> bool:
+        """
+        Validate that test set starts strictly after training set.
+        Raises ValueError if invalid, otherwise returns True.
+        """
+        train_ts = int(train_end.timestamp())
+        test_ts = int(test_start.timestamp())
+        # This will raise PyValueError if leakage occurs
+        self._validator.validate_temporal_split(df, time_col, train_ts, test_ts)
+        return True
+
+    def split(
+        self, df: pl.DataFrame, time_col: str, cutoff: datetime
+    ) -> Tuple[pl.DataFrame, pl.DataFrame]:
+        """Zero‑copy split at a given cutoff datetime."""
+        cutoff_ts = int(cutoff.timestamp())
+        return self._validator.split_dataframe(df, time_col, cutoff_ts)
 
 class ExpandingWindowValidator:
     def __init__(self, min_train_size: int, test_size: int, step_size: int = 1):

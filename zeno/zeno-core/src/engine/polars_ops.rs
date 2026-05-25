@@ -158,4 +158,29 @@ impl PolarsValidator {
 
         Ok((train.into(), test.into()))
     }
+
+     /// Set the train/test split boundary (for mask‑based API)
+    pub fn set_split(&mut self, train_end: i64, test_start: i64) -> PyResult<()> {
+        if test_start <= train_end {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Test start must be after train end (temporal leakage detected!)"
+            ));
+        }
+        self.train_end_col = Some(train_end.to_string());
+        self.test_start_col = Some(test_start.to_string());
+        Ok(())
+    }
+
+    /// Check that a feature timestamp does not fall into the test set
+    pub fn check_feature_window(&self, feature_ts: i64) -> PyResult<bool> {
+        if let Some(ref train_end_str) = self.train_end_col {
+            let train_end: i64 = train_end_str.parse().unwrap_or(i64::MAX);
+            if feature_ts > train_end {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    format!("Feature uses data from {} which is after train cutoff! TEMPORAL LEAKAGE DETECTED.", feature_ts)
+                ));
+            }
+        }
+        Ok(true)
+    }
 }
