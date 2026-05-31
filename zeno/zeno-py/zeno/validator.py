@@ -1,10 +1,10 @@
-"""
-Temporal validation and leakage detection – using PolarsValidator for zero‑copy splits.
-"""
+"""Temporal validation and leakage detection."""
+
 from typing import List, Tuple
 from datetime import datetime
 import polars as pl
 from ._zeno import PolarsValidator as _PolarsValidator
+from .zero_copy import validate_temporal_coverage, zero_copy_temporal_split
 
 
 class TemporalSplitter:
@@ -60,11 +60,5 @@ class TemporalSplitter:
         Zero‑copy split of a Polars DataFrame.
         Returns (train_df, test_df) without copying data.
         """
-        train_ts = int(train_end.timestamp())
-        test_ts = int(test_start.timestamp())
-
-        # Validate (raises if leakage)
-        self._core.validate_temporal_split(df, time_col, train_ts, test_ts)
-
-        train_df, test_df = self._core.split_dataframe(df, time_col, train_ts)
-        return train_df, test_df
+        validate_temporal_coverage(df, time_col, train_end, test_start)
+        return zero_copy_temporal_split(df, time_col, train_end, test_start)
