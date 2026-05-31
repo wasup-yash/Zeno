@@ -20,7 +20,10 @@ impl GPUAccelerator {
     /// Check GPU availability
     pub fn is_available(&self, py: Python<'_>) -> PyResult<bool> {
         let torch = py.import_bound("torch")?;
-        let available: bool = torch.getattr("cuda")?.call_method0("is_available")?.extract()?;
+        let available: bool = torch
+            .getattr("cuda")?
+            .call_method0("is_available")?
+            .extract()?;
         Ok(available)
     }
 
@@ -28,10 +31,10 @@ impl GPUAccelerator {
     pub fn get_memory_info(&self, py: Python<'_>) -> PyResult<(u64, u64)> {
         let torch = py.import_bound("torch")?;
         let cuda = torch.getattr("cuda")?;
-        
+
         let allocated: u64 = cuda.call_method0("memory_allocated")?.extract()?;
         let reserved: u64 = cuda.call_method0("memory_reserved")?.extract()?;
-        
+
         Ok((allocated, reserved))
     }
 
@@ -49,31 +52,34 @@ impl GPUAccelerator {
         inputs: Vec<Vec<f64>>,
     ) -> PyResult<Vec<Vec<f64>>> {
         let torch = py.import_bound("torch")?;
-        
+
         // Convert to tensor
         let input_tensor = torch.call_method1("tensor", (inputs.clone(),))?;
         let input_gpu = input_tensor.call_method1("to", (&self.device,))?;
-        
+
         // Run inference in batches
         let mut results = Vec::new();
         let num_batches = (inputs.len() + self.batch_size - 1) / self.batch_size;
-        
+
         for i in 0..num_batches {
             let start = i * self.batch_size;
             let end = ((i + 1) * self.batch_size).min(inputs.len());
-            
+
             let batch = input_gpu.get_item(pyo3::types::PySlice::new_bound(
-                py, start as isize, end as isize, 1
+                py,
+                start as isize,
+                end as isize,
+                1,
             ))?;
-            
+
             // Inference
             let output = model.call_method1("forward", (batch,))?;
             let cpu_output = output.call_method0("cpu")?;
             let batch_result: Vec<Vec<f64>> = cpu_output.call_method0("tolist")?.extract()?;
-            
+
             results.extend(batch_result);
         }
-        
+
         Ok(results)
     }
 
@@ -85,7 +91,10 @@ impl GPUAccelerator {
     }
 
     fn __repr__(&self) -> String {
-        format!("GPUAccelerator(device='{}', batch_size={})", self.device, self.batch_size)
+        format!(
+            "GPUAccelerator(device='{}', batch_size={})",
+            self.device, self.batch_size
+        )
     }
 }
 
@@ -108,11 +117,11 @@ impl TensorConverter {
     pub fn to_tensor(&self, py: Python<'_>, values: Vec<f64>) -> PyResult<PyObject> {
         let torch = py.import_bound("torch")?;
         let tensor = torch.call_method1("tensor", (values,))?;
-        
+
         // Set dtype
         let dtype_obj = torch.getattr(self.dtype.as_str())?;
         let typed_tensor = tensor.call_method1("to", (dtype_obj,))?;
-        
+
         Ok(typed_tensor.into())
     }
 

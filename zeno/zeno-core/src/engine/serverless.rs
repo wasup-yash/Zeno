@@ -14,17 +14,19 @@ pub struct BacktestResult {
 #[pymethods]
 impl BacktestResult {
     #[new]
-    pub fn new(
-        metrics: HashMap<String, f64>,
-        predictions: Vec<f64>,
-        actuals: Vec<f64>,
-    ) -> Self {
-        let residuals: Vec<f64> = predictions.iter()
+    pub fn new(metrics: HashMap<String, f64>, predictions: Vec<f64>, actuals: Vec<f64>) -> Self {
+        let residuals: Vec<f64> = predictions
+            .iter()
             .zip(&actuals)
             .map(|(&p, &a)| a - p)
             .collect();
-        
-        Self { metrics, predictions, actuals, residuals }
+
+        Self {
+            metrics,
+            predictions,
+            actuals,
+            residuals,
+        }
     }
 
     #[getter]
@@ -89,35 +91,35 @@ impl BacktestRunner {
         min_train: usize,
     ) -> PyResult<Vec<BacktestResult>> {
         let mut results = Vec::new();
-        
+
         for i in 0..self.n_splits {
             let train_end = min_train + i * self.step_size;
             let test_end = train_end + self.test_size;
-            
+
             if test_end > data.len() {
                 break;
             }
-            
+
             let train_data = data[..train_end].to_vec();
             let test_data = &data[train_end..test_end];
-            
+
             // Fit model - pass Vec instead of slice
             model.call_method1("fit", (train_data,))?;
-            
+
             // Predict
             let preds_obj = model.call_method1("predict", (self.test_size,))?;
             let predictions: Vec<f64> = preds_obj.extract()?;
-            
+
             // Compute metrics
             let metrics = self.compute_metrics(&predictions, test_data);
-            
+
             results.push(BacktestResult::new(
                 metrics,
                 predictions,
                 test_data.to_vec(),
             ));
         }
-        
+
         Ok(results)
     }
 
@@ -130,28 +132,32 @@ impl BacktestRunner {
         window_size: usize,
     ) -> PyResult<Vec<BacktestResult>> {
         let mut results = Vec::new();
-        
+
         for i in 0..self.n_splits {
             let train_start = i * self.step_size;
             let train_end = train_start + window_size;
             let test_end = train_end + self.test_size;
-            
+
             if test_end > data.len() {
                 break;
             }
-            
+
             let train_data = data[train_start..train_end].to_vec();
             let test_data = &data[train_end..test_end];
-            
+
             // Fit model - pass Vec instead of slice
             model.call_method1("fit", (train_data,))?;
             let preds_obj = model.call_method1("predict", (self.test_size,))?;
             let predictions: Vec<f64> = preds_obj.extract()?;
-            
+
             let metrics = self.compute_metrics(&predictions, test_data);
-            results.push(BacktestResult::new(metrics, predictions, test_data.to_vec()));
+            results.push(BacktestResult::new(
+                metrics,
+                predictions,
+                test_data.to_vec(),
+            ));
         }
-        
+
         Ok(results)
     }
 
@@ -168,32 +174,39 @@ impl BacktestRunner {
     /// Compute common metrics
     fn compute_metrics(&self, predictions: &[f64], actuals: &[f64]) -> HashMap<String, f64> {
         let mut metrics = HashMap::new();
-        
+
         // MSE
-        let mse: f64 = predictions.iter()
+        let mse: f64 = predictions
+            .iter()
             .zip(actuals)
             .map(|(&p, &a)| (a - p).powi(2))
-            .sum::<f64>() / predictions.len() as f64;
+            .sum::<f64>()
+            / predictions.len() as f64;
         metrics.insert("mse".to_string(), mse);
-        
+
         // MAE
-        let mae: f64 = predictions.iter()
+        let mae: f64 = predictions
+            .iter()
             .zip(actuals)
             .map(|(&p, &a)| (a - p).abs())
-            .sum::<f64>() / predictions.len() as f64;
+            .sum::<f64>()
+            / predictions.len() as f64;
         metrics.insert("mae".to_string(), mae);
-        
+
         // RMSE
         metrics.insert("rmse".to_string(), mse.sqrt());
-        
+
         // MAPE
-        let mape: f64 = predictions.iter()
+        let mape: f64 = predictions
+            .iter()
             .zip(actuals)
             .filter(|(_, &a)| a != 0.0)
             .map(|(&p, &a)| ((a - p) / a).abs())
-            .sum::<f64>() / predictions.len() as f64 * 100.0;
+            .sum::<f64>()
+            / predictions.len() as f64
+            * 100.0;
         metrics.insert("mape".to_string(), mape);
-        
+
         metrics
     }
 }
@@ -224,21 +237,21 @@ impl ServerlessConfig {
     pub fn submit_job(&self, py: Python<'_>, job_config: Bound<'_, PyDict>) -> PyResult<String> {
         let boto3 = py.import_bound("boto3")?;
         let lambda_client = boto3.call_method1("client", ("lambda",))?;
-        
+
         let json = py.import_bound("json")?;
         let payload_str = json.call_method1("dumps", (job_config,))?;
-        
+
         let kwargs = PyDict::new_bound(py);
         kwargs.set_item("FunctionName", &self.lambda_function)?;
         kwargs.set_item("InvocationType", "Event")?;
         kwargs.set_item("Payload", payload_str)?;
 
         let response = lambda_client.call_method("invoke", (), Some(&kwargs))?;
-        
+
         // Fix for Bound API item access
         let metadata = response.get_item("ResponseMetadata")?;
         let request_id: String = metadata.get_item("RequestId")?.extract()?;
-        
+
         Ok(request_id)
     }
 }

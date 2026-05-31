@@ -148,8 +148,8 @@ class PolarsWindow:
         self.lags = normalize_lags(lags)
         self.rolling = [int(window) for window in (rolling or [])]
 
-    def _expressions_for(self, column: str) -> list[pl.Expr]:
-        exprs: list[pl.Expr] = [
+    def _expressions_for(self, column: str) -> List[pl.Expr]:
+        exprs: List[pl.Expr] = [
             pl.col(column).shift(lag).alias(f"{column}_lag_{lag}")
             for lag in self.lags
         ]
@@ -176,13 +176,13 @@ class PolarsWindow:
         *,
         include_original: bool = True,
     ) -> pl.DataFrame:
-        exprs: list[pl.Expr] = []
+        exprs: List[pl.Expr] = []
         for column in columns:
             exprs.extend(self._expressions_for(column))
         return df.with_columns(exprs) if include_original else df.select(exprs)
 
     def transform_lazy(self, lf: pl.LazyFrame, columns: List[str]) -> pl.LazyFrame:
-        exprs: list[pl.Expr] = []
+        exprs: List[pl.Expr] = []
         for column in columns:
             exprs.extend(self._expressions_for(column))
         return lf.with_columns(exprs)

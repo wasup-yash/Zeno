@@ -1,9 +1,9 @@
-use arrow::array::{Array, Float64Array, ArrayRef};
-use arrow::datatypes::{Schema, Field, DataType};
+use arrow::array::{Array, ArrayRef, Float64Array};
+use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use pyo3::prelude::*;
-use std::sync::Arc;
 use rayon::prelude::*;
+use std::sync::Arc;
 
 #[pyclass]
 pub struct ArrowPipeline {
@@ -52,16 +52,12 @@ impl ArrowPipeline {
         Ok(result)
     }
 
-    pub fn ema_simple(
-        &self,
-        values: Vec<f64>,
-        alpha: f64,
-    ) -> PyResult<Vec<Option<f64>>> {
+    pub fn ema_simple(&self, values: Vec<f64>, alpha: f64) -> PyResult<Vec<Option<f64>>> {
         let mut result: Vec<Option<f64>> = Vec::with_capacity(values.len());
         let mut ema: Option<f64> = None;
         for &value in &values {
             ema = Some(match ema {
-                None       => value,
+                None => value,
                 Some(prev) => alpha * value + (1.0 - alpha) * prev,
             });
             result.push(ema);
@@ -84,7 +80,11 @@ impl ArrowPipeline {
 
         let mut result: Vec<Option<f64>> = Vec::with_capacity(values.len());
         let mut level = values[0];
-        let mut trend = if values.len() > 1 { values[1] - values[0] } else { 0.0 };
+        let mut trend = if values.len() > 1 {
+            values[1] - values[0]
+        } else {
+            0.0
+        };
 
         result.push(Some(level));
 
@@ -105,7 +105,7 @@ impl ArrowPipeline {
         lags: Vec<usize>,
     ) -> PyResult<Vec<Vec<Option<f64>>>> {
         let n = values.len();
-        
+
         let result: Vec<Vec<Option<f64>>> = lags
             .par_iter()
             .map(|&lag| {
@@ -135,18 +135,19 @@ pub fn create_lags_record_batch(
     column_name: &str,
     lags: Vec<usize>,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
-    let source_array = batch
-        .column_by_name(column_name)
-        .ok_or_else(|| arrow::error::ArrowError::InvalidArgumentError(
-            format!("Column '{}' not found", column_name)
-        ))?;
+    let source_array = batch.column_by_name(column_name).ok_or_else(|| {
+        arrow::error::ArrowError::InvalidArgumentError(format!(
+            "Column '{}' not found",
+            column_name
+        ))
+    })?;
 
     let float_array = source_array
         .as_any()
         .downcast_ref::<Float64Array>()
-        .ok_or_else(|| arrow::error::ArrowError::InvalidArgumentError(
-            "Column must be Float64".to_string()
-        ))?;
+        .ok_or_else(|| {
+            arrow::error::ArrowError::InvalidArgumentError("Column must be Float64".to_string())
+        })?;
 
     let lag_arrays: Vec<ArrayRef> = lags
         .par_iter()
@@ -187,18 +188,19 @@ pub fn rolling_mean_record_batch(
     column_name: &str,
     window: usize,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
-    let source_array = batch
-        .column_by_name(column_name)
-        .ok_or_else(|| arrow::error::ArrowError::InvalidArgumentError(
-            format!("Column '{}' not found", column_name)
-        ))?;
+    let source_array = batch.column_by_name(column_name).ok_or_else(|| {
+        arrow::error::ArrowError::InvalidArgumentError(format!(
+            "Column '{}' not found",
+            column_name
+        ))
+    })?;
 
     let float_array = source_array
         .as_any()
         .downcast_ref::<Float64Array>()
-        .ok_or_else(|| arrow::error::ArrowError::InvalidArgumentError(
-            "Column must be Float64".to_string()
-        ))?;
+        .ok_or_else(|| {
+            arrow::error::ArrowError::InvalidArgumentError("Column must be Float64".to_string())
+        })?;
 
     let mut builder = arrow::array::Float64Builder::new();
 
@@ -244,18 +246,19 @@ pub fn ema_record_batch(
     column_name: &str,
     alpha: f64,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
-    let source_array = batch
-        .column_by_name(column_name)
-        .ok_or_else(|| arrow::error::ArrowError::InvalidArgumentError(
-            format!("Column '{}' not found", column_name)
-        ))?;
+    let source_array = batch.column_by_name(column_name).ok_or_else(|| {
+        arrow::error::ArrowError::InvalidArgumentError(format!(
+            "Column '{}' not found",
+            column_name
+        ))
+    })?;
 
     let float_array = source_array
         .as_any()
         .downcast_ref::<Float64Array>()
-        .ok_or_else(|| arrow::error::ArrowError::InvalidArgumentError(
-            "Column must be Float64".to_string()
-        ))?;
+        .ok_or_else(|| {
+            arrow::error::ArrowError::InvalidArgumentError("Column must be Float64".to_string())
+        })?;
 
     let mut builder = arrow::array::Float64Builder::new();
     let mut ema: Option<f64> = None;
@@ -266,7 +269,7 @@ pub fn ema_record_batch(
         } else {
             let value = float_array.value(i);
             ema = Some(match ema {
-                None       => value,
+                None => value,
                 Some(prev) => alpha * value + (1.0 - alpha) * prev,
             });
             builder.append_value(ema.unwrap());
@@ -288,32 +291,41 @@ pub fn ema_record_batch(
 }
 
 pub fn prepare_for_model_inference(
-        batch: &RecordBatch,
-        column_name: &str,
-        lookback_window: usize,
-    ) -> PyResult<Vec<Vec<f64>>> {
-        let column = batch.column_by_name(column_name)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Column {} not found", column_name)
-            ))?;
+    batch: &RecordBatch,
+    column_name: &str,
+    lookback_window: usize,
+) -> PyResult<Vec<Vec<f64>>> {
+    let column = batch.column_by_name(column_name).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Column {} not found", column_name))
+    })?;
 
-        let float_array = column.as_any().downcast_ref::<Float64Array>()
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyTypeError, _>("Column must be Float64"))?;
+    let float_array = column
+        .as_any()
+        .downcast_ref::<Float64Array>()
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyTypeError, _>("Column must be Float64"))?;
 
-        let data: Vec<f64> = (0..float_array.len())
-            .map(|i| if float_array.is_null(i) { 0.0 } else { float_array.value(i) })
-            .collect();
+    let data: Vec<f64> = (0..float_array.len())
+        .map(|i| {
+            if float_array.is_null(i) {
+                0.0
+            } else {
+                float_array.value(i)
+            }
+        })
+        .collect();
 
-        if data.len() < lookback_window {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Data shorter than lookback window"));
-        }
-
-        // Generate sliding windows
-        let mut sequences = Vec::new();
-        for i in 0..=(data.len() - lookback_window) {
-            let window = data[i..i + lookback_window].to_vec();
-            sequences.push(window);
-        }
-
-        Ok(sequences)
+    if data.len() < lookback_window {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "Data shorter than lookback window",
+        ));
     }
+
+    // Generate sliding windows
+    let mut sequences = Vec::new();
+    for i in 0..=(data.len() - lookback_window) {
+        let window = data[i..i + lookback_window].to_vec();
+        sequences.push(window);
+    }
+
+    Ok(sequences)
+}

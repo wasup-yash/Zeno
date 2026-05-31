@@ -21,7 +21,7 @@ impl WindowOp {
     pub fn create_lags(&self, values: Vec<f64>) -> PyResult<Vec<Vec<Option<f64>>>> {
         let n = values.len();
         let mut result = Vec::with_capacity(self.lags.len());
-        
+
         for &lag in &self.lags {
             let mut lagged = vec![None; n];
             for i in lag..n {
@@ -29,7 +29,7 @@ impl WindowOp {
             }
             result.push(lagged);
         }
-        
+
         Ok(result)
     }
 
@@ -37,12 +37,12 @@ impl WindowOp {
     pub fn rolling_mean(&self, values: Vec<f64>, window: usize) -> PyResult<Vec<Option<f64>>> {
         let n = values.len();
         let mut result = vec![None; n];
-        
+
         for i in window..=n {
-            let sum: f64 = values[i-window..i].iter().sum();
-            result[i-1] = Some(sum / window as f64);
+            let sum: f64 = values[i - window..i].iter().sum();
+            result[i - 1] = Some(sum / window as f64);
         }
-        
+
         Ok(result)
     }
 
@@ -50,16 +50,15 @@ impl WindowOp {
     pub fn rolling_std(&self, values: Vec<f64>, window: usize) -> PyResult<Vec<Option<f64>>> {
         let n = values.len();
         let mut result = vec![None; n];
-        
+
         for i in window..=n {
-            let slice = &values[i-window..i];
+            let slice = &values[i - window..i];
             let mean: f64 = slice.iter().sum::<f64>() / window as f64;
-            let variance: f64 = slice.iter()
-                .map(|&x| (x - mean).powi(2))
-                .sum::<f64>() / window as f64;
-            result[i-1] = Some(variance.sqrt());
+            let variance: f64 =
+                slice.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / window as f64;
+            result[i - 1] = Some(variance.sqrt());
         }
-        
+
         Ok(result)
     }
 
@@ -71,7 +70,7 @@ impl WindowOp {
     ) -> PyResult<Vec<Option<f64>>> {
         if values.len() != weights.len() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Values and weights must have same length"
+                "Values and weights must have same length",
             ));
         }
 
@@ -81,19 +80,22 @@ impl WindowOp {
         let weight_sum: f64 = weights.iter().sum();
 
         for i in window..=n {
-            let weighted_sum: f64 = values[i-window..i]
+            let weighted_sum: f64 = values[i - window..i]
                 .iter()
                 .zip(&weights)
                 .map(|(&v, &w)| v * w)
                 .sum();
-            result[i-1] = Some(weighted_sum / weight_sum);
+            result[i - 1] = Some(weighted_sum / weight_sum);
         }
 
         Ok(result)
     }
 
     fn __repr__(&self) -> String {
-        format!("WindowOp(lags={:?}, rolling={:?})", self.lags, self.rolling_windows)
+        format!(
+            "WindowOp(lags={:?}, rolling={:?})",
+            self.lags, self.rolling_windows
+        )
     }
 }
 
@@ -110,21 +112,17 @@ pub fn compute_single_lag(values: &[f64], lag: usize) -> Vec<Option<f64>> {
 }
 
 /// Compute rolling window statistic (generic)
-pub fn compute_rolling_stat<F>(
-    values: &[f64],
-    window: usize,
-    stat_fn: F,
-) -> Vec<Option<f64>>
+pub fn compute_rolling_stat<F>(values: &[f64], window: usize, stat_fn: F) -> Vec<Option<f64>>
 where
     F: Fn(&[f64]) -> f64,
 {
     let n = values.len();
     let mut result = vec![None; n];
-    
+
     for i in window..=n {
-        let slice = &values[i-window..i];
-        result[i-1] = Some(stat_fn(slice));
+        let slice = &values[i - window..i];
+        result[i - 1] = Some(stat_fn(slice));
     }
-    
+
     result
 }

@@ -27,22 +27,19 @@ impl ChronosWrapper {
     /// Load model from HuggingFace (calls Python transformers library)
     pub fn load_model(&self, py: Python<'_>) -> PyResult<PyObject> {
         let transformers = py.import_bound("transformers")?;
-        let model = transformers.call_method1(
-            "AutoModelForSeq2SeqLM.from_pretrained",
-            (&self.model_name,)
-        )?;
+        let model = transformers
+            .call_method1("AutoModelForSeq2SeqLM.from_pretrained", (&self.model_name,))?;
         Ok(model.into())
     }
 
     /// Prepare time series data for Chronos input format
-    pub fn prepare_input(
-        &self,
-        values: Vec<f64>,
-    ) -> PyResult<Vec<Vec<f64>>> {
+    pub fn prepare_input(&self, values: Vec<f64>) -> PyResult<Vec<Vec<f64>>> {
         if values.len() < self.context_length {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Need at least {} values, got {}", self.context_length, values.len())
-            ));
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Need at least {} values, got {}",
+                self.context_length,
+                values.len()
+            )));
         }
 
         // Create sliding windows
@@ -55,7 +52,7 @@ impl ChronosWrapper {
     }
 
     /// Forecast future values
-    
+
     pub fn forecast(
         &self,
         py: Python<'_>,
@@ -64,7 +61,7 @@ impl ChronosWrapper {
         frequency: &str,
     ) -> PyResult<Vec<Vec<f64>>> {
         let gluonts_data = py.import_bound("gluonts.dataset.common")?;
-        
+
         let entry = PyDict::new_bound(py);
         // Convert Vec<f64> to Python list to satisfy IntoPy bound
         entry.set_item("target", history.to_object(py))?;
@@ -73,7 +70,7 @@ impl ChronosWrapper {
 
         let dataset = gluonts_data.call_method1("ListDataset", (vec![entry], frequency))?;
         let forecasts = model.call_method1("predict", (dataset,))?;
-        
+
         // Correctly extract from iterator in Bound API
         let forecast_iter = forecasts.call_method0("__iter__")?;
         let mut samples: Vec<Vec<f64>> = Vec::new();
@@ -81,7 +78,7 @@ impl ChronosWrapper {
         if let Ok(first_forecast) = forecast_iter.call_method0("__next__") {
             samples = first_forecast.getattr("samples")?.extract()?;
         }
-        
+
         Ok(samples)
     }
 
@@ -110,7 +107,9 @@ impl LagLlamaWrapper {
         prediction_length: Option<usize>,
     ) -> Self {
         Self {
-            model_path: model_path.unwrap_or("time-series-foundation-models/Lag-Llama").to_string(),
+            model_path: model_path
+                .unwrap_or("time-series-foundation-models/Lag-Llama")
+                .to_string(),
             context_length: context_length.unwrap_or(32),
             prediction_length: prediction_length.unwrap_or(1),
         }
@@ -119,7 +118,8 @@ impl LagLlamaWrapper {
     /// Load Lag-Llama model
     pub fn load_model(&self, py: Python<'_>) -> PyResult<PyObject> {
         let gluonts = py.import_bound("gluonts.torch")?;
-        let model = gluonts.call_method1("LagLlamaEstimator.from_pretrained", (&self.model_path,))?;
+        let model =
+            gluonts.call_method1("LagLlamaEstimator.from_pretrained", (&self.model_path,))?;
         Ok(model.into())
     }
 
@@ -132,7 +132,7 @@ impl LagLlamaWrapper {
         num_samples: usize,
     ) -> PyResult<Vec<Vec<f64>>> {
         let gluonts = py.import_bound("gluonts.dataset.common")?;
-        
+
         // Create dataset entry
         let entry = PyDict::new_bound(py);
         entry.set_item("target", history)?;
@@ -142,7 +142,7 @@ impl LagLlamaWrapper {
         let forecasts = model.call_method(
             "predict",
             (vec![entry], num_samples, self.prediction_length),
-            None
+            None,
         )?;
 
         let samples: Vec<Vec<f64>> = forecasts.extract()?;
@@ -186,7 +186,7 @@ impl MoiraiWrapper {
     /// Load MOIRAI model from HuggingFace via uni2ts/gluonts
     pub fn load_model(&self, py: Python<'_>) -> PyResult<PyObject> {
         let uni2ts = py.import_bound("uni2ts.model.moirai")?;
-        
+
         // MOIRAI models are often loaded via MoiraiForecastPredictor or MoiraiModule
         let model = uni2ts.call_method(
             "MoiraiForecastPredictor.from_pretrained",
@@ -197,7 +197,7 @@ impl MoiraiWrapper {
                 kwargs.set_item("context_length", self.context_length)?;
                 kwargs.set_item("patch_size", self.patch_size)?;
                 kwargs
-            })
+            }),
         )?;
         Ok(model.into())
     }
@@ -211,7 +211,7 @@ impl MoiraiWrapper {
         frequency: &str,
     ) -> PyResult<Vec<Vec<f64>>> {
         let gluonts_data = py.import_bound("gluonts.dataset.common")?;
-        
+
         // Create the dataset entry required by uni2ts/gluonts
         let entry = PyDict::new_bound(py);
         entry.set_item("target", history)?;
@@ -223,9 +223,9 @@ impl MoiraiWrapper {
 
         // Run prediction
         let forecasts = model.call_method1("predict", (&dataset,))?;
-        
+
         // Extract samples from the Forecast object
-        
+
         let forecast_iter = forecasts.call_method0("__iter__")?;
         let first_forecast = forecast_iter.call_method0("__next__")?;
         let samples: Vec<Vec<f64>> = first_forecast.getattr("samples")?.extract()?;
@@ -240,25 +240,18 @@ impl MoiraiWrapper {
     }
 }
 
-
 /// Normalize time series for model input
 pub fn normalize_for_model(values: &[f64]) -> (Vec<f64>, f64, f64) {
     let mean = values.iter().sum::<f64>() / values.len() as f64;
-    let std = (values.iter()
-        .map(|&x| (x - mean).powi(2))
-        .sum::<f64>() / values.len() as f64)
-        .sqrt();
+    let std =
+        (values.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64).sqrt();
 
-    let normalized: Vec<f64> = values.iter()
-        .map(|&x| (x - mean) / std)
-        .collect();
+    let normalized: Vec<f64> = values.iter().map(|&x| (x - mean) / std).collect();
 
     (normalized, mean, std)
 }
 
 /// Denormalize model output
 pub fn denormalize_forecast(forecast: &[f64], mean: f64, std: f64) -> Vec<f64> {
-    forecast.iter()
-        .map(|&x| x * std + mean)
-        .collect()
+    forecast.iter().map(|&x| x * std + mean).collect()
 }

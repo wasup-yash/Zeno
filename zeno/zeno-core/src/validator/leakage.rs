@@ -1,8 +1,8 @@
-use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
 
 #[derive(Debug, Clone)]
 pub struct FeatureFingerprint {
@@ -14,13 +14,9 @@ pub struct FeatureFingerprint {
 
 impl FeatureFingerprint {
     /// Create fingerprint for a feature window
-    pub fn new(
-        timestamps: Vec<i64>,
-        values: Vec<f64>,
-        feature_name: String,
-    ) -> Self {
+    pub fn new(timestamps: Vec<i64>, values: Vec<f64>, feature_name: String) -> Self {
         let mut hasher = DefaultHasher::new();
-        
+
         // Hash the time window
         for ts in &timestamps {
             ts.hash(&mut hasher);
@@ -63,7 +59,7 @@ impl FeatureFingerprint {
         // Jaccard similarity of timestamps
         let self_set: HashSet<_> = self.timestamps.iter().collect();
         let other_set: HashSet<_> = other.timestamps.iter().collect();
-        
+
         let intersection = self_set.intersection(&other_set).count();
         let union = self_set.union(&other_set).count();
 
@@ -114,18 +110,15 @@ impl LeakageDetector {
         feature_name: String,
     ) -> PyResult<HashMap<String, f64>> {
         let test_fp = FeatureFingerprint::new(timestamps, values, feature_name.clone());
-        
+
         let mut leakage_scores: HashMap<String, f64> = HashMap::new();
 
         for train_fp in &self.train_fingerprints {
             if test_fp.overlaps_with(train_fp) {
                 let similarity = test_fp.similarity(train_fp);
-                
+
                 if similarity > self.threshold {
-                    leakage_scores.insert(
-                        train_fp.feature_name.clone(),
-                        similarity,
-                    );
+                    leakage_scores.insert(train_fp.feature_name.clone(), similarity);
                 }
             }
         }
@@ -152,7 +145,7 @@ impl LeakageDetector {
 
         for test_fp in &self.test_fingerprints {
             let mut overlaps = Vec::new();
-            
+
             for train_fp in &self.train_fingerprints {
                 if test_fp.overlaps_with(train_fp) {
                     let similarity = test_fp.similarity(train_fp);
@@ -218,18 +211,21 @@ impl RollingHashValidator {
     }
 
     fn __repr__(&self) -> String {
-        format!("RollingHashValidator(known_windows={})", self.known_hashes.len())
+        format!(
+            "RollingHashValidator(known_windows={})",
+            self.known_hashes.len()
+        )
     }
 }
 
 impl RollingHashValidator {
-     fn compute_hash(&self, values: &[f64]) -> u64 {
+    fn compute_hash(&self, values: &[f64]) -> u64 {
         let mut hasher = DefaultHasher::new();
-        
+
         for val in values.iter().take(self.hash_size.min(values.len())) {
             val.to_bits().hash(&mut hasher);
         }
-        
+
         hasher.finish()
     }
 }

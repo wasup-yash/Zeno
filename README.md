@@ -12,14 +12,32 @@ Traditional time series libraries (sktime, Prophet, Darts) suffer from:
 4. **Heavy Dependencies**: 500MB+ install size, 400+ package dependencies
 
 
-##  Testing
+## Install and Run
 
-```bash
-cd zeno-py
-source .venv/bin/activate
-uv pip install pytest pytest-benchmark
-pytest ../tests -v
+```powershell
+cd D:\Zeno\zeno\zeno-py
+uv venv
+.\.venv\Scripts\Activate.ps1
+uv pip install -e . maturin pytest
+maturin develop --release
+python ..\examples\quickstart.py
+pytest ..\tests -v
 ```
+
+The default engine path is Arrow/Polars-native. Plain Python lists still work
+for quick experiments, but they are treated as a compatibility path because
+lists must be copied across the Python/Rust boundary.
+
+## Zero-Copy Contract
+
+- Arrow lag features are built from a null prefix plus slices of the original
+  Arrow buffers.
+- Polars feature generation uses expressions instead of `to_dict`,
+  `to_list`, or Python row loops.
+- Temporal DataFrame splits require a sorted time column and return contiguous
+  `slice` views instead of boolean-filtered copies.
+- New derived feature columns allocate their own output buffers, but source
+  columns are never materialized through Python lists or dictionaries.
 
 ## 🗺️ Roadmap
 

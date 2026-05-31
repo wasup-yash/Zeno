@@ -1,20 +1,20 @@
 use pyo3::prelude::*;
 
 mod engine;
-mod validator;
 mod types;
+mod validator;
 
-use engine::window::WindowOp;
 use engine::arrow_ops::ArrowPipeline;
-use engine::polars_ops::{PolarsWindowOp, PolarsValidator};
-use validator::temporal::TemporalValidator;
-use validator::leakage::{LeakageDetector, RollingHashValidator};
+use engine::audit::{AuditLogger, AuditReport, ComplianceChecker, ReportGenerator};
+use engine::batch::{BatchPredictor, EnsemblePredictor, Forecast};
 use engine::foundation::{ChronosWrapper, LagLlamaWrapper, MoiraiWrapper};
 use engine::gpu::{GPUAccelerator, TensorConverter};
-use engine::batch::{Forecast, BatchPredictor, EnsemblePredictor};
-use engine::serverless::{BacktestResult, BacktestRunner, ServerlessConfig};
 use engine::managed::{ManagedPipeline, PipelineRegistry, ValidationScheduler};
-use engine::audit::{AuditReport, ComplianceChecker, AuditLogger, ReportGenerator};
+use engine::polars_ops::{PolarsValidator, PolarsWindowOp};
+use engine::serverless::{BacktestResult, BacktestRunner, ServerlessConfig};
+use engine::window::WindowOp;
+use validator::leakage::{LeakageDetector, RollingHashValidator};
+use validator::temporal::TemporalValidator;
 
 #[pymodule]
 fn _zeno(m: &Bound<'_, PyModule>) -> PyResult<()> {

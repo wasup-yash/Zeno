@@ -14,13 +14,18 @@ from ._zeno import (
     Forecast,
     BatchPredictor,
     ChronosWrapper,
+    LagLlamaWrapper,
     MoiraiWrapper,
     GPUAccelerator,
     TensorConverter,
     ManagedPipeline,
+    PipelineRegistry,
     ValidationScheduler,
     BacktestResult,
     ServerlessConfig,
+    ComplianceChecker,
+    AuditLogger,
+    ReportGenerator,
 )
 
 # 2. Python wrappers (advanced features)
@@ -34,6 +39,7 @@ from .advanced import (
     AuditManager,
     ManagedExecutor,
 )
+from .zero_copy import zero_copy_temporal_split
 
 # 3. Phase 1 atoms & molecule
 try:
@@ -61,13 +67,18 @@ __all__ = [
     "Forecast",
     "BatchPredictor",
     "ChronosWrapper",
+    "LagLlamaWrapper",
     "MoiraiWrapper",
     "GPUAccelerator",
     "TensorConverter",
     "ManagedPipeline",
+    "PipelineRegistry",
     "ValidationScheduler",
     "BacktestResult",
     "ServerlessConfig",
+    "ComplianceChecker",
+    "AuditLogger",
+    "ReportGenerator",
     "LeakageDetector",
     "RollingHashValidator",
     # Python Wrappers
@@ -85,4 +96,5 @@ __all__ = [
     "EMA",
     "Molecule",
     "TemporalSplitter",
+    "zero_copy_temporal_split",
 ]

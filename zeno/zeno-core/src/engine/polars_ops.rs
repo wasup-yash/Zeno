@@ -17,11 +17,7 @@ impl PolarsWindowOp {
         }
     }
 
-    pub fn create_lags_polars(
-        &self,
-        df: Bound<'_, PyAny>,
-        column: &str,
-    ) -> PyResult<PyObject> {
+    pub fn create_lags_polars(&self, df: Bound<'_, PyAny>, column: &str) -> PyResult<PyObject> {
         let py = df.py();
         let pl = py.import_bound("polars")?;
         let col = pl.getattr("col")?;
@@ -61,11 +57,7 @@ impl PolarsWindowOp {
         Ok(result.into())
     }
 
-    pub fn expanding_mean_polars(
-        &self,
-        df: Bound<'_, PyAny>,
-        column: &str,
-    ) -> PyResult<PyObject> {
+    pub fn expanding_mean_polars(&self, df: Bound<'_, PyAny>, column: &str) -> PyResult<PyObject> {
         let py = df.py();
         let pl = py.import_bound("polars")?;
         let expr = pl
@@ -142,6 +134,14 @@ impl PolarsValidator {
         }
 
         let time_series = df.call_method1("get_column", (time_col,))?;
+        let is_sorted: bool = time_series.call_method0("is_sorted")?.extract()?;
+        if !is_sorted {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Column '{}' must be sorted ascending for zero-copy slicing",
+                time_col
+            )));
+        }
+
         let min_time: i64 = time_series.call_method0("min")?.extract()?;
         let max_time: i64 = time_series.call_method0("max")?.extract()?;
 
@@ -162,12 +162,28 @@ impl PolarsValidator {
     ) -> PyResult<(PyObject, PyObject)> {
         let py = df.py();
         let pl = py.import_bound("polars")?;
-        let col = pl.getattr("col")?;
-        let train_cond = col.call1((time_col,))?.call_method1("le", (cutoff,))?;
-        let test_cond = col.call1((time_col,))?.call_method1("gt", (cutoff,))?;
+        let time_series = df.call_method1("get_column", (time_col,))?;
+        let is_sorted: bool = time_series.call_method0("is_sorted")?.extract()?;
+        if !is_sorted {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Column '{}' must be sorted ascending for zero-copy slicing",
+                time_col
+            )));
+        }
 
-        let train = df.call_method1("filter", (train_cond,))?;
-        let test = df.call_method1("filter", (test_cond,))?;
+        let train_len_expr = pl
+            .getattr("col")?
+            .call1((time_col,))?
+            .call_method1("le", (cutoff,))?
+            .call_method0("sum")?
+            .call_method1("alias", ("__train_len",))?;
+        let train_len: usize = df
+            .call_method1("select", (vec![train_len_expr],))?
+            .call_method0("item")?
+            .extract()?;
+
+        let train = df.call_method1("slice", (0_i64, train_len))?;
+        let test = df.call_method1("slice", (train_len as i64,))?;
 
         Ok((train.into(), test.into()))
     }

@@ -9,7 +9,7 @@ round-trips, and prefer views/slices for existing data.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Iterable, Sequence, Tuple
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import polars as pl
 import pyarrow as pa
@@ -27,7 +27,7 @@ def ensure_polars_frame(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def normalize_lags(lags: Iterable[int] | None) -> list[int]:
+def normalize_lags(lags: Optional[Iterable[int]]) -> List[int]:
     clean = [int(lag) for lag in (lags or [])]
     if any(lag < 0 for lag in clean):
         raise ValueError("Lags must be non-negative")
@@ -60,7 +60,7 @@ def arrow_lag(column: pa.ChunkedArray, lag: int) -> pa.ChunkedArray:
 
 def append_arrow_columns(
     table: pa.Table,
-    columns: Sequence[tuple[str, pa.Array | pa.ChunkedArray]],
+    columns: Sequence[Tuple[str, Union[pa.Array, pa.ChunkedArray]]],
     *,
     include_original: bool = True,
 ) -> pa.Table:

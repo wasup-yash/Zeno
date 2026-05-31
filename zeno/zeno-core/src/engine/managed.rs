@@ -36,30 +36,27 @@ impl ManagedPipeline {
     }
 
     /// Execute pipeline
-    pub fn execute(
-        &self,
-        py: Python<'_>,
-        data: Bound<'_, PyAny>,
-    ) -> PyResult<PyObject> {
+    pub fn execute(&self, py: Python<'_>, data: Bound<'_, PyAny>) -> PyResult<PyObject> {
         let mut result: PyObject = data.clone().unbind();
-        
+
         for step in &self.steps {
             let parts: Vec<&str> = step.split(':').collect();
             let step_type = parts[0];
             let step_name = parts[1];
-            
+
             result = match step_type {
                 "temporal_split" => self.execute_temporal_split(py, result, step_name)?,
                 "leakage_check" => self.execute_leakage_check(py, result, step_name)?,
                 "feature_validation" => self.execute_feature_validation(py, result, step_name)?,
                 _ => {
-                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                        format!("Unknown step type: {}", step_type)
-                    ));
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                        "Unknown step type: {}",
+                        step_type
+                    )));
                 }
             };
         }
-        
+
         Ok(result)
     }
 
@@ -69,14 +66,13 @@ impl ManagedPipeline {
         data: PyObject,
         _step_name: &str,
     ) -> PyResult<PyObject> {
-        let cutoff = self.config.get("temporal_cutoff")
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "temporal_cutoff not configured"
-            ))?;
-        
+        let cutoff = self.config.get("temporal_cutoff").ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("temporal_cutoff not configured")
+        })?;
+
         let validator = py.import_bound("zeno.validator")?;
         let splitter = validator.getattr("TemporalSplitter")?.call0()?;
-        
+
         let result = splitter.call_method1("split", (data, cutoff))?;
         Ok(result.into())
     }
@@ -87,10 +83,11 @@ impl ManagedPipeline {
         data: PyObject,
         _step_name: &str,
     ) -> PyResult<PyObject> {
-        let detector = py.import_bound("zeno.advanced")?
+        let detector = py
+            .import_bound("zeno.advanced")?
             .getattr("AdvancedLeakageDetector")?
             .call0()?;
-        
+
         let result = detector.call_method1("check", (data,))?;
         Ok(result.into())
     }
@@ -117,7 +114,8 @@ impl ManagedPipeline {
     fn __repr__(&self) -> String {
         format!(
             "ManagedPipeline(id='{}', steps={})",
-            self.pipeline_id, self.steps.len()
+            self.pipeline_id,
+            self.steps.len()
         )
     }
 }
@@ -137,11 +135,7 @@ impl PipelineRegistry {
     }
 
     /// Register a pipeline configuration
-    pub fn register(
-        &mut self,
-        pipeline_id: String,
-        config_json: String,
-    ) -> PyResult<()> {
+    pub fn register(&mut self, pipeline_id: String, config_json: String) -> PyResult<()> {
         self.pipelines.insert(pipeline_id, config_json);
         Ok(())
     }
@@ -190,15 +184,13 @@ impl ValidationScheduler {
         _py: Python<'_>,
         cron_expression: Option<String>,
     ) -> PyResult<String> {
-        let schedule_expr = cron_expression.unwrap_or_else(|| 
-            match self.schedule.as_str() {
-                "hourly" => "0 * * * *".to_string(),
-                "daily" => "0 0 * * *".to_string(),
-                "weekly" => "0 0 * * 0".to_string(),
-                _ => "0 0 * * *".to_string(),
-            }
-        );
-        
+        let schedule_expr = cron_expression.unwrap_or_else(|| match self.schedule.as_str() {
+            "hourly" => "0 * * * *".to_string(),
+            "daily" => "0 0 * * *".to_string(),
+            "weekly" => "0 0 * * 0".to_string(),
+            _ => "0 0 * * *".to_string(),
+        });
+
         // In production, this would integrate with AWS EventBridge or similar
         Ok(format!(
             "Scheduled pipeline '{}' with cron: {}",

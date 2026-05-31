@@ -1,10 +1,10 @@
 // Phase 4: Compliance & Audit Reports
 // src/engine/audit.rs
 
+use chrono::{DateTime, Utc};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 
 #[pyclass]
 #[derive(Clone)]
@@ -56,7 +56,10 @@ impl AuditReport {
         summary.insert("report_id".to_string(), self.report_id.clone());
         summary.insert("timestamp".to_string(), self.timestamp.clone());
         summary.insert("passed".to_string(), self.passed.to_string());
-        summary.insert("checks".to_string(), self.validation_results.len().to_string());
+        summary.insert(
+            "checks".to_string(),
+            self.validation_results.len().to_string(),
+        );
         summary.insert("warnings".to_string(), self.warnings.len().to_string());
         summary
     }
@@ -64,7 +67,7 @@ impl AuditReport {
     /// Export to JSON
     pub fn to_json(&self, py: Python<'_>) -> PyResult<String> {
         let json_mod = py.import_bound("json")?;
-        
+
         let report_dict = PyDict::new_bound(py);
         report_dict.set_item("report_id", &self.report_id)?;
         report_dict.set_item("timestamp", &self.timestamp)?;
@@ -72,15 +75,19 @@ impl AuditReport {
         report_dict.set_item("validations", self.validation_results.clone())?;
         report_dict.set_item("metrics", self.metrics.clone())?;
         report_dict.set_item("warnings", self.warnings.clone())?;
-        
-        let json_str: String = json_mod.call_method1("dumps", (report_dict, 4))?.extract()?;
+
+        let json_str: String = json_mod
+            .call_method1("dumps", (report_dict, 4))?
+            .extract()?;
         Ok(json_str)
     }
 
     fn __repr__(&self) -> String {
         format!(
             "AuditReport(id='{}', passed={}, checks={})",
-            self.report_id, self.passed, self.validation_results.len()
+            self.report_id,
+            self.passed,
+            self.validation_results.len()
         )
     }
 }
@@ -95,13 +102,25 @@ impl ComplianceChecker {
     #[new]
     pub fn new() -> Self {
         let mut rules = HashMap::new();
-        
+
         // Default compliance rules
-        rules.insert("temporal_leakage".to_string(), "No future data in training".to_string());
-        rules.insert("data_distribution".to_string(), "Train/test distributions similar".to_string());
-        rules.insert("feature_stability".to_string(), "Features stable across splits".to_string());
-        rules.insert("model_performance".to_string(), "Performance within bounds".to_string());
-        
+        rules.insert(
+            "temporal_leakage".to_string(),
+            "No future data in training".to_string(),
+        );
+        rules.insert(
+            "data_distribution".to_string(),
+            "Train/test distributions similar".to_string(),
+        );
+        rules.insert(
+            "feature_stability".to_string(),
+            "Features stable across splits".to_string(),
+        );
+        rules.insert(
+            "model_performance".to_string(),
+            "Performance within bounds".to_string(),
+        );
+
         Self { rules }
     }
 
@@ -118,13 +137,17 @@ impl ComplianceChecker {
         test_dates: Vec<String>,
     ) -> PyResult<bool> {
         let _datetime_mod = py.import_bound("datetime")?;
-        
+
         // Parse dates
-        let train_max = train_dates.iter().max()
+        let train_max = train_dates
+            .iter()
+            .max()
             .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Empty train dates"))?;
-        let test_min = test_dates.iter().min()
+        let test_min = test_dates
+            .iter()
+            .min()
             .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Empty test dates"))?;
-        
+
         // Check ordering
         Ok(test_min > train_max)
     }
@@ -138,20 +161,24 @@ impl ComplianceChecker {
     ) -> PyResult<bool> {
         let train_mean = train_data.iter().sum::<f64>() / train_data.len() as f64;
         let test_mean = test_data.iter().sum::<f64>() / test_data.len() as f64;
-        
-        let train_std = (train_data.iter()
+
+        let train_std = (train_data
+            .iter()
             .map(|&x| (x - train_mean).powi(2))
-            .sum::<f64>() / train_data.len() as f64)
+            .sum::<f64>()
+            / train_data.len() as f64)
             .sqrt();
-        
-        let test_std = (test_data.iter()
+
+        let test_std = (test_data
+            .iter()
             .map(|&x| (x - test_mean).powi(2))
-            .sum::<f64>() / test_data.len() as f64)
+            .sum::<f64>()
+            / test_data.len() as f64)
             .sqrt();
-        
+
         let mean_diff = (train_mean - test_mean).abs() / train_mean;
         let std_diff = (train_std - test_std).abs() / train_std;
-        
+
         Ok(mean_diff < threshold && std_diff < threshold)
     }
 
@@ -162,26 +189,31 @@ impl ComplianceChecker {
         data_config: Bound<'_, PyDict>,
     ) -> PyResult<AuditReport> {
         let mut report = AuditReport::new(format!("audit_{}", Utc::now().timestamp()));
-        
+
         // Extract data
-        let train_dates: Vec<String> = data_config.get_item("train_dates")?
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("train_dates not found"))?
-        .extract()?;
-        let test_dates: Vec<String> = data_config.get_item("test_dates")?
-        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("test_dates not found"))?
-        .extract()?;
-        
+        let train_dates: Vec<String> = data_config
+            .get_item("train_dates")?
+            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("train_dates not found"))?
+            .extract()?;
+        let test_dates: Vec<String> = data_config
+            .get_item("test_dates")?
+            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("test_dates not found"))?
+            .extract()?;
+
         // Check temporal leakage
         let no_leakage = self.check_temporal_leakage(py, train_dates, test_dates)?;
         report.add_validation("temporal_leakage".to_string(), no_leakage);
-        
+
         if !no_leakage {
             report.add_warning("Temporal leakage detected in train/test split".to_string());
         }
-        
+
         // Add metrics
-        report.add_metric("compliance_score".to_string(), if no_leakage { 100.0 } else { 0.0 });
-        
+        report.add_metric(
+            "compliance_score".to_string(),
+            if no_leakage { 100.0 } else { 0.0 },
+        );
+
         Ok(report)
     }
 
@@ -223,16 +255,20 @@ impl AuditLogger {
     /// Save logs to file
     pub fn save(&self, py: Python<'_>) -> PyResult<()> {
         let content = self.logs.join("\n");
-        
+
         let pathlib = py.import_bound("pathlib")?;
         let path = pathlib.getattr("Path")?.call1((&self.log_file,))?;
         path.call_method1("write_text", (content,))?;
-        
+
         Ok(())
     }
 
     fn __repr__(&self) -> String {
-        format!("AuditLogger(file='{}', entries={})", self.log_file, self.logs.len())
+        format!(
+            "AuditLogger(file='{}', entries={})",
+            self.log_file,
+            self.logs.len()
+        )
     }
 }
 
@@ -254,7 +290,7 @@ impl ReportGenerator {
     /// Generate HTML report
     pub fn generate_html(&self, report: &AuditReport) -> PyResult<String> {
         let summary = report.summary();
-        
+
         let html = format!(
             r#"<!DOCTYPE html>
 <html>
@@ -303,7 +339,7 @@ impl ReportGenerator {
             summary.get("checks").unwrap_or(&"0".to_string()),
             summary.get("warnings").unwrap_or(&"0".to_string()),
         );
-        
+
         Ok(html)
     }
 
@@ -315,10 +351,10 @@ impl ReportGenerator {
         output_path: &str,
     ) -> PyResult<String> {
         let _html = self.generate_html(report)?;
-        
+
         // In production, would use weasyprint or similar
         let _weasyprint = py.import_bound("weasyprint");
-        
+
         // Placeholder - actual PDF generation would go here
         Ok(format!("PDF report saved to {}", output_path))
     }
