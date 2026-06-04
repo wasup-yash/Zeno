@@ -40,6 +40,12 @@ from .advanced import (
     ManagedExecutor,
 )
 from .zero_copy import zero_copy_temporal_split
+from .foundation import FoundationModelBridge, TensorBridge
+from .cloud import (
+    ManagedValidationPipeline,
+    ServerlessBacktestJob,
+    ZeroCopyBacktestRunner,
+)
 
 # 3. Phase 1 atoms & molecule
 try:
@@ -97,4 +103,9 @@ __all__ = [
     "Molecule",
     "TemporalSplitter",
     "zero_copy_temporal_split",
+    "FoundationModelBridge",
+    "TensorBridge",
+    "ManagedValidationPipeline",
+    "ServerlessBacktestJob",
+    "ZeroCopyBacktestRunner",
 ]

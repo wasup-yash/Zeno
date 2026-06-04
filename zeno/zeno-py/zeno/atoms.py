@@ -4,6 +4,7 @@ from typing import List, Optional
 
 import polars as pl
 import pyarrow as pa
+import pyarrow.compute as pc
 
 from .advanced import ArrowWindow, PolarsWindow
 from ._zeno import WindowOp as _WindowOp
@@ -86,13 +87,77 @@ class EMA:
         return self._core.ema_simple(values, self.alpha)
 
 class Scale:
-    """Placeholder for scaling operations."""
-    
-    def __init__(self, method: str = "standard"):
+    """Standard/robust scaling that keeps source columns untouched."""
+
+    def __init__(self, method: str = "standard", column: Optional[str] = None):
+        if method not in {"standard", "robust"}:
+            raise ValueError("method must be 'standard' or 'robust'")
         self.method = method
-    
-    def fit(self, data):
-        pass
-    
-    def transform(self, data):
-        return data
+        self.column = column
+        self.center_ = None
+        self.scale_ = None
+
+    def fit(self, data, column: Optional[str] = None):
+        column = column or self.column
+        if isinstance(data, pl.DataFrame):
+            column = Window._resolve_column(data, column)
+            if self.method == "standard":
+                stats = data.select(
+                    pl.col(column).mean().alias("center"),
+                    pl.col(column).std().alias("scale"),
+                )
+            else:
+                stats = data.select(
+                    pl.col(column).median().alias("center"),
+                    (pl.col(column).quantile(0.75) - pl.col(column).quantile(0.25)).alias("scale"),
+                )
+            self.center_ = float(stats["center"][0])
+            self.scale_ = float(stats["scale"][0] or 1.0)
+            self.column = column
+            return self
+
+        if isinstance(data, pa.Table):
+            column = Window._resolve_column(data, column)
+            values = data.column(column)
+            if self.method == "standard":
+                self.center_ = pc.mean(values).as_py()
+                self.scale_ = pc.stddev(values).as_py() or 1.0
+            else:
+                quantiles = pc.quantile(values, q=[0.25, 0.5, 0.75]).as_py()
+                self.center_ = quantiles[1]
+                self.scale_ = (quantiles[2] - quantiles[0]) or 1.0
+            self.column = column
+            return self
+
+        values = [float(value) for value in data]
+        sorted_values = sorted(values)
+        if self.method == "standard":
+            self.center_ = sum(values) / len(values)
+            variance = sum((value - self.center_) ** 2 for value in values) / len(values)
+            self.scale_ = variance**0.5 or 1.0
+        else:
+            mid = len(sorted_values) // 2
+            self.center_ = sorted_values[mid]
+            q1 = sorted_values[len(sorted_values) // 4]
+            q3 = sorted_values[(3 * len(sorted_values)) // 4]
+            self.scale_ = (q3 - q1) or 1.0
+        return self
+
+    def transform(self, data, column: Optional[str] = None, *, include_original: bool = True):
+        if self.center_ is None or self.scale_ is None:
+            self.fit(data, column)
+        column = column or self.column
+
+        if isinstance(data, pl.DataFrame):
+            column = Window._resolve_column(data, column)
+            expr = ((pl.col(column) - self.center_) / self.scale_).alias(f"{column}_scaled")
+            return data.with_columns(expr) if include_original else data.select(expr)
+
+        if isinstance(data, pa.Table):
+            column = Window._resolve_column(data, column)
+            scaled = pc.divide(pc.subtract(data.column(column), self.center_), self.scale_)
+            if include_original:
+                return data.append_column(f"{column}_scaled", scaled)
+            return pa.Table.from_arrays([scaled], names=[f"{column}_scaled"])
+
+        return [(float(value) - self.center_) / self.scale_ for value in data]

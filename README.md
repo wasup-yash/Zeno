@@ -39,6 +39,18 @@ lists must be copied across the Python/Rust boundary.
 - New derived feature columns allocate their own output buffers, but source
   columns are never materialized through Python lists or dictionaries.
 
+## Phase API Map
+
+- Phase 1: `Window`, `PolarsWindow`, `ArrowWindow`, `TemporalSplitter`,
+  `PolarsTemporalValidator`, `LeakageDetector`.
+- Phase 2: `AdvancedLeakageDetector.register_training_frame`,
+  `AdvancedLeakageDetector.check_test_frame`, Arrow buffer fingerprints,
+  Polars expression pipelines.
+- Phase 3: `FoundationModelBridge` for slice-backed context windows and
+  `TensorBridge` for Arrow-to-NumPy/PyTorch CPU views.
+- Phase 4: `ZeroCopyBacktestRunner`, `ManagedValidationPipeline`, and
+  `ServerlessBacktestJob` for cloud-ready validation/backtest payloads.
+
 ## 🗺️ Roadmap
 
 ### Phase 1: Zero-Copy Windowing + Validation (Current)

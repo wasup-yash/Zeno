@@ -19,8 +19,10 @@ from ._zeno import (
 from .zero_copy import (
     append_arrow_columns,
     arrow_lag,
+    arrow_feature_fingerprint,
     ensure_arrow_table,
     normalize_lags,
+    polars_feature_fingerprint,
     validate_temporal_coverage,
     zero_copy_temporal_split,
 )
@@ -116,6 +118,8 @@ class AdvancedLeakageDetector:
     def __init__(self, threshold: float = 0.1):
         self._detector = LeakageDetector(threshold)
         self._hash_validator = RollingHashValidator(hash_size=100)
+        self._frame_fingerprints: List[Dict[str, object]] = []
+        self.threshold = threshold
 
     def register_training_feature(
         self,
@@ -138,6 +142,67 @@ class AdvancedLeakageDetector:
 
     def get_report(self):
         return self._detector.get_leakage_report()
+
+    def register_training_frame(
+        self,
+        data,
+        time_col: str,
+        value_col: str,
+        feature_name: str,
+    ) -> Dict[str, object]:
+        fingerprint = self._fingerprint_frame(data, time_col, value_col, feature_name)
+        self._frame_fingerprints.append(fingerprint)
+        return fingerprint
+
+    def check_test_frame(
+        self,
+        data,
+        time_col: str,
+        value_col: str,
+        feature_name: str,
+    ) -> Dict[str, float]:
+        test_fp = self._fingerprint_frame(data, time_col, value_col, feature_name)
+        leakage_scores: Dict[str, float] = {}
+
+        for train_fp in self._frame_fingerprints:
+            score = self._fingerprint_similarity(train_fp, test_fp)
+            if score > self.threshold:
+                leakage_scores[str(train_fp["feature_name"])] = score
+
+        if leakage_scores:
+            raise ValueError(
+                f"LEAKAGE DETECTED in feature '{feature_name}': "
+                f"{len(leakage_scores)} overlapping training fingerprints"
+            )
+
+        return leakage_scores
+
+    @staticmethod
+    def _fingerprint_frame(data, time_col: str, value_col: str, feature_name: str):
+        if isinstance(data, pa.Table):
+            return arrow_feature_fingerprint(data, time_col, value_col, feature_name)
+        if isinstance(data, pl.DataFrame):
+            return polars_feature_fingerprint(data, time_col, value_col, feature_name)
+        raise TypeError("Expected a pyarrow.Table or polars.DataFrame")
+
+    @staticmethod
+    def _fingerprint_similarity(train_fp: Dict[str, object], test_fp: Dict[str, object]) -> float:
+        exact_values = train_fp["value_hash"] == test_fp["value_hash"]
+        exact_times = train_fp["time_hash"] == test_fp["time_hash"]
+        if exact_values and exact_times and train_fp["n_rows"] == test_fp["n_rows"]:
+            return 1.0
+
+        train_min = train_fp["time_min"]
+        train_max = train_fp["time_max"]
+        test_min = test_fp["time_min"]
+        test_max = test_fp["time_max"]
+        overlaps = train_min <= test_max and test_min <= train_max
+
+        if not overlaps:
+            return 0.0
+        if exact_values:
+            return 0.95
+        return 0.5
 
 
 class PolarsWindow:
