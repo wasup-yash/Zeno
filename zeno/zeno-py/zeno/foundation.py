@@ -1,11 +1,9 @@
 """Foundation-model bridges that preserve Arrow/Polars views until inference."""
-
 from __future__ import annotations
-
 from typing import List, Optional
-
 import polars as pl
 import pyarrow as pa
+import torch
 
 from .zero_copy import arrow_window_view, polars_window_view, zero_copy_numpy_view
 
@@ -76,7 +74,7 @@ class TensorBridge:
         return zero_copy_numpy_view(table, column)
 
     def arrow_torch_tensor(self, table: pa.Table, column: str, *, device: str = "cpu"):
-        import torch
+        
 
         array = self.arrow_numpy_view(table, column)
         tensor = torch.from_numpy(array)

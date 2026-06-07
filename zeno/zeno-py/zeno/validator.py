@@ -1,5 +1,4 @@
 """Temporal validation and leakage detection."""
-
 from typing import List, Tuple
 from datetime import datetime
 import polars as pl
