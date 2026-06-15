@@ -10,6 +10,17 @@ from .advanced import ArrowWindow, PolarsWindow
 from ._zeno import WindowOp as _WindowOp
 from ._zeno import ArrowPipeline as _ArrowCore
 
+
+def _linear_quantile(sorted_values, q: float) -> float:
+    if not sorted_values:
+        raise ValueError("Cannot scale an empty sequence")
+    position = (len(sorted_values) - 1) * q
+    lower = int(position)
+    upper = min(lower + 1, len(sorted_values) - 1)
+    weight = position - lower
+    return sorted_values[lower] * (1.0 - weight) + sorted_values[upper] * weight
+
+
 class Window:
     """Create lag and rolling window features.
 
@@ -130,16 +141,17 @@ class Scale:
             return self
 
         values = [float(value) for value in data]
+        if not values:
+            raise ValueError("Cannot scale an empty sequence")
         sorted_values = sorted(values)
         if self.method == "standard":
             self.center_ = sum(values) / len(values)
             variance = sum((value - self.center_) ** 2 for value in values) / len(values)
             self.scale_ = variance**0.5 or 1.0
         else:
-            mid = len(sorted_values) // 2
-            self.center_ = sorted_values[mid]
-            q1 = sorted_values[len(sorted_values) // 4]
-            q3 = sorted_values[(3 * len(sorted_values)) // 4]
+            self.center_ = _linear_quantile(sorted_values, 0.5)
+            q1 = _linear_quantile(sorted_values, 0.25)
+            q3 = _linear_quantile(sorted_values, 0.75)
             self.scale_ = (q3 - q1) or 1.0
         return self
 

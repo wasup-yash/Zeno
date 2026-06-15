@@ -63,6 +63,13 @@ class ZeroCopyBacktestRunner:
     @staticmethod
     def compute_metrics(predictions, actuals: pl.Series) -> Dict[str, float]:
         pred = pl.Series("__pred", predictions)
+        if len(pred) != len(actuals):
+            raise ValueError(
+                f"Prediction length {len(pred)} does not match actual length {len(actuals)}"
+            )
+        if len(pred) == 0:
+            raise ValueError("Cannot compute metrics for an empty prediction window")
+
         actual = actuals.alias("__actual")
         frame = pl.DataFrame([pred, actual])
         metrics = frame.select(

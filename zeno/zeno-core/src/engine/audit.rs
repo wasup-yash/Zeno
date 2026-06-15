@@ -1,7 +1,7 @@
 // Phase 4: Compliance & Audit Reports
 // src/engine/audit.rs
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
@@ -240,6 +240,7 @@ impl AuditLogger {
     }
 
     /// Log an event
+    #[pyo3(signature = (event, level=None))]
     pub fn log(&mut self, event: String, level: Option<&str>) {
         let log_level = level.unwrap_or("INFO");
         let timestamp = Utc::now().to_rfc3339();

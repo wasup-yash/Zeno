@@ -131,7 +131,7 @@ impl LagLlamaWrapper {
         history: Vec<f64>,
         num_samples: usize,
     ) -> PyResult<Vec<Vec<f64>>> {
-        let gluonts = py.import_bound("gluonts.dataset.common")?;
+        let _gluonts = py.import_bound("gluonts.dataset.common")?;
 
         // Create dataset entry
         let entry = PyDict::new_bound(py);

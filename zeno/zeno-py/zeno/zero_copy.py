@@ -135,7 +135,6 @@ def arrow_chunked_value_hash(column: pa.ChunkedArray) -> int:
 
     for chunk in column.chunks:
         hasher.update(len(chunk).to_bytes(8, "little", signed=False))
-        hasher.update(chunk.offset.to_bytes(8, "little", signed=False))
         null_buffer = chunk.buffers()[0]
         if null_buffer is not None:
             hasher.update(memoryview(null_buffer))
@@ -239,10 +238,16 @@ def assert_sorted_by(df: pl.DataFrame, time_col: str) -> None:
 
 
 def count_leq(df: pl.DataFrame, time_col: str, value) -> int:
+    series = df.get_column(time_col)
+    if hasattr(series, "search_sorted"):
+        return int(series.search_sorted(value, side="right"))
     return int(df.select((pl.col(time_col) <= value).sum().alias("__n")).item())
 
 
 def count_lt(df: pl.DataFrame, time_col: str, value) -> int:
+    series = df.get_column(time_col)
+    if hasattr(series, "search_sorted"):
+        return int(series.search_sorted(value, side="left"))
     return int(df.select((pl.col(time_col) < value).sum().alias("__n")).item())
 
 
@@ -262,13 +267,14 @@ def zero_copy_temporal_split(
     ensure_polars_frame(df)
     assert_sorted_by(df, time_col)
 
+    train_end_idx = count_leq(df, time_col, train_end)
+
     if test_start is not None:
         validate_temporal_bounds(train_end, test_start)
         test_start_idx = count_lt(df, time_col, test_start)
     else:
-        test_start_idx = count_leq(df, time_col, train_end)
+        test_start_idx = train_end_idx
 
-    train_end_idx = count_leq(df, time_col, train_end)
     train = df.slice(0, train_end_idx)
     test = df.slice(test_start_idx)
     return train, test

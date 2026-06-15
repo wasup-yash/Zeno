@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use rayon::prelude::*;
 
 #[pyclass]
 #[derive(Clone)]
@@ -87,7 +86,7 @@ impl BatchPredictor {
     /// CPU-based batch prediction
     fn predict_batch_cpu(
         &self,
-        py: Python<'_>,
+        _py: Python<'_>,
         model: Bound<'_, PyAny>,
         series_list: Vec<Vec<f64>>,
         horizon: usize,
@@ -201,7 +200,7 @@ impl EnsemblePredictor {
     /// Weighted ensemble prediction
     pub fn predict_ensemble(
         &self,
-        py: Python<'_>,
+        _py: Python<'_>,
         model_dict: Bound<'_, PyDict>,
         series: Vec<f64>,
         horizon: usize,
