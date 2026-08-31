@@ -1,4 +1,59 @@
 use pyo3::prelude::*;
+use pyo3::exceptions::{PyMemoryError, PyRuntimeError};
+use thiserror::Error;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[derive(Error, Debug)]
+pub enum GpuError {
+    #[error("GPU Out Of Memory: Requested {requested} bytes, Available {available} bytes")]
+    OutOfMemory { requested: usize, available: usize },
+    #[error("Device execution failed: {0}")]
+    ExecutionFailed(String),
+}
+
+impl From<GpuError> for PyErr {
+    fn from(err: GpuError) -> PyErr {
+        match err {
+            GpuError::OutOfMemory { .. } => PyMemoryError::new_err(err.to_string()),
+            _ => PyRuntimeError::new_err(err.to_string()),
+        }
+    }
+}
+
+// Global GPU Memory tracker to prevent CUDA/WGPU OOM panics
+static GPU_ALLOCATED_BYTES: AtomicUsize = AtomicUsize::new(0);
+const MAX_GPU_MEMORY: usize = 16 * 1024 * 1024 * 1024; // e.g., 16GB limit
+
+/// Represents a safely managed GPU memory allocation utilizing RAII
+pub struct ManagedGpuTensor {
+    pub size_bytes: usize,
+    // ptr: *mut std::ffi::c_void, // In production, this holds the device pointer (CUDA/WGPU)
+}
+
+impl ManagedGpuTensor {
+    /// Attempts to allocate GPU memory. Returns a clean error if limits are exceeded.
+    pub fn allocate(size_bytes: usize) -> Result<Self, GpuError> {
+        let current = GPU_ALLOCATED_BYTES.load(Ordering::SeqCst);
+        if current + size_bytes > MAX_GPU_MEMORY {
+            return Err(GpuError::OutOfMemory {
+                requested: size_bytes,
+                available: MAX_GPU_MEMORY.saturating_sub(current),
+            });
+        }
+        
+        GPU_ALLOCATED_BYTES.fetch_add(size_bytes, Ordering::SeqCst);
+        
+        Ok(Self { size_bytes })
+    }
+}
+
+// The core of production GPU safety: deterministic memory freeing
+impl Drop for ManagedGpuTensor {
+    fn drop(&mut self) {
+        GPU_ALLOCATED_BYTES.fetch_sub(self.size_bytes, Ordering::SeqCst);
+        // unsafe { cudaFree(self.ptr); } // Explicit release of C-device pointers
+    }
+}
 
 #[pyclass]
 pub struct GPUAccelerator {

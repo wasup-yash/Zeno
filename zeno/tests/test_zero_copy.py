@@ -5,6 +5,7 @@ import pyarrow as pa
 import pytest
 
 from zeno.advanced import ArrowWindow, PolarsTemporalValidator, PolarsWindow
+from zeno.zero_copy import generate_lag
 
 
 def test_arrow_lag_reuses_source_value_buffer():
@@ -22,6 +23,34 @@ def test_arrow_lag_reuses_source_value_buffer():
 
     assert result["value_lag_1"].to_pylist() == [None, 1.0, 2.0, 3.0, 4.0]
     assert lag_buffer.address == source_buffer.address
+
+
+def test_generate_lag_preserves_values_and_source_buffer():
+    series = pl.Series("value", [1.0, 2.0, 3.0, 4.0])
+
+    result = generate_lag(series, 2)
+
+    source_buffer = series.to_arrow().buffers()[1]
+
+    assert result.name == "value"
+    assert result.to_list() == [None, None, 1.0, 2.0]
+    # Polars may expose the result as a single Arrow array after import; the
+    # FFI-level buffer check below verifies the Rust slice directly.
+    from zeno._zeno import create_lags_chunked
+
+    rust_chunks = create_lags_chunked(series.to_arrow(), 2)
+    assert rust_chunks[1].buffers()[1].address == source_buffer.address
+
+
+def test_generate_lag_boundary_cases():
+    series = pl.Series("value", [1, 2, 3])
+
+    assert generate_lag(series, 0).to_list() == [1, 2, 3]
+    assert generate_lag(series, 3).to_list() == [None, None, None]
+    with pytest.raises(ValueError, match="cannot exceed"):
+        generate_lag(series, 4)
+    with pytest.raises(ValueError, match="non-negative"):
+        generate_lag(series, -1)
 
 
 def test_polars_features_are_expression_based():

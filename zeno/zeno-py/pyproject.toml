@@ -8,28 +8,16 @@ version = "0.1.0"
 description = "Zero-copy time series library for modern AI"
 requires-python = ">=3.8"
 dependencies = [
-    "polars>=1.0.0",
+    "polars>=0.20.0",
     "pyarrow>=14.0.0",
     "numpy>=1.24.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-benchmark>=4.0.0",
+    "pytest>=7.0",
+    "pytest-benchmark>=4.0",
     "ruff>=0.1.0",
-]
-models = [
-    "transformers>=4.40.0",
-    "gluonts>=0.14.3",
-    "uni2ts",
-    "torch>=2.0.0",
-]
-cloud = [
-    "boto3>=1.28.0",
-]
-reports = [
-    "weasyprint>=60.0",
 ]
 
 [tool.maturin]

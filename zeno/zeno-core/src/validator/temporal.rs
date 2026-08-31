@@ -1,5 +1,6 @@
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::exceptions::PyValueError;
+use chrono::{DateTime, Utc, NaiveDateTime};
 
 #[pyclass]
 pub struct TemporalValidator {
@@ -18,17 +19,13 @@ impl TemporalValidator {
     }
 
     /// Set the train/test split boundary
-    pub fn set_split(
-        &mut self,
-        train_end_timestamp: i64,
-        test_start_timestamp: i64,
-    ) -> PyResult<()> {
+    pub fn set_split(&mut self, train_end_timestamp: i64, test_start_timestamp: i64) -> PyResult<()> {
         if test_start_timestamp <= train_end_timestamp {
             return Err(PyValueError::new_err(
-                "Test start must be after train end (temporal leakage detected!)",
+                "Test start must be after train end (temporal leakage detected!)"
             ));
         }
-
+        
         self.train_end = Some(train_end_timestamp);
         self.test_start = Some(test_start_timestamp);
         Ok(())
@@ -47,9 +44,7 @@ impl TemporalValidator {
     }
 
     fn __repr__(&self) -> String {
-        format!(
-            "TemporalValidator(train_end={:?}, test_start={:?})",
-            self.train_end, self.test_start
-        )
+        format!("TemporalValidator(train_end={:?}, test_start={:?})", 
+                self.train_end, self.test_start)
     }
 }

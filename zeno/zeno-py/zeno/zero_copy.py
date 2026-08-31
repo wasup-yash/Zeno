@@ -16,6 +16,8 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.compute as pc
 
+from ._zeno import create_lags_chunked
+
 
 def ensure_arrow_table(table: pa.Table) -> pa.Table:
     if not isinstance(table, pa.Table):
@@ -58,6 +60,25 @@ def arrow_lag(column: pa.ChunkedArray, lag: int) -> pa.ChunkedArray:
     shifted = column.slice(0, n_rows - lag)
     chunks = [pa.nulls(lag, type=column.type), *shifted.chunks]
     return pa.chunked_array(chunks, type=column.type)
+
+
+def generate_lag(series: pl.Series, lag: int) -> pl.Series:
+    """Construct a lagged Series from a null chunk and a zero-copy Arrow slice.
+
+    The source Series must fit in one Arrow array, as returned by Polars'
+    ``Series.to_arrow``. The Rust layer creates only the null-prefix metadata;
+    the non-null values retain their original Arrow buffer.
+    """
+    if not isinstance(series, pl.Series):
+        raise TypeError("Expected a polars.Series")
+
+    lag = int(lag)
+    if lag < 0:
+        raise ValueError("Lag must be non-negative")
+
+    arrow_array = series.to_arrow()
+    rust_chunks = create_lags_chunked(arrow_array, lag)
+    return pl.from_arrow(pa.chunked_array(rust_chunks, type=arrow_array.type)).rename(series.name)
 
 
 def append_arrow_columns(

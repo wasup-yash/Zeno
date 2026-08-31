@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 dates = [datetime(2024, 1, 1) + timedelta(days=i) for i in range(100)]
 values = [10.0 + i * 0.5 for i in range(100)]
 
-print("Zeno Quickstart Example")
+print("🌀 Zeno Quickstart Example")
 print("=" * 50)
 
 # 1. Create lag features
@@ -47,7 +47,7 @@ except ValueError as e:
     print(f"   ✗ Leakage detected: {e}")
 
 # 5. Pipeline composition
-print("\n5️  Building a pipeline...")
+print("\n5️⃣  Building a pipeline...")
 pipeline = zn.Molecule([
     zn.Window(lags=[1, 7]),
     zn.Scale(method="robust")
@@ -55,4 +55,4 @@ pipeline = zn.Molecule([
 print(f"   Pipeline: {pipeline}")
 
 print("\n" + "=" * 50)
-print("Zeno is ready! Check benchmarks/ for performance tests.")
+print("✨ Zeno is ready! Check benchmarks/ for performance tests.")

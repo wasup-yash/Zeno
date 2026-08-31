@@ -16,16 +16,24 @@ OS="$(uname -s)"
 case "${OS}" in
     Linux*)     MACHINE=Linux;;
     Darwin*)    MACHINE=Mac;;
+    CYGWIN*|MINGW*|MSYS*) MACHINE=Windows;;
     *)          MACHINE="UNKNOWN:${OS}"
 esac
 
-echo -e "${BLUE}📍 Detected OS: ${MACHINE}${NC}"
+echo -e "${BLUE} Detected OS: ${MACHINE}${NC}"
+
+# Set OS-specific paths for virtual environments
+if [ "$MACHINE" = "Windows" ]; then
+    VENV_ACTIVATE=".venv/Scripts/activate"
+else
+    VENV_ACTIVATE=".venv/bin/activate"
+fi
 
 # Get the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZENO_ROOT="${SCRIPT_DIR}/zeno"
 
-echo -e "${BLUE}📂 Zeno will be installed in: ${ZENO_ROOT}${NC}"
+echo -e "${BLUE} Zeno will be installed in: ${ZENO_ROOT}${NC}"
 
 # 1. Install Rust (if not present)
 echo -e "\n${YELLOW}[1/7] Installing Rust toolchain...${NC}"
@@ -45,14 +53,18 @@ fi
 # 2. Check for Python and setup virtual environment method
 echo -e "\n${YELLOW}[2/7] Setting up Python environment...${NC}"
 
-# Check Python version
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}✗ Python 3 not found. Please install Python 3.8 or higher.${NC}"
+# Check Python command (handles Windows python vs python3)
+if command -v python3 &> /dev/null && python3 -c "import sys; sys.exit(0)" &> /dev/null; then
+    PYTHON_CMD="python3"
+elif command -v python &> /dev/null && python -c "import sys; sys.exit(0)" &> /dev/null; then
+    PYTHON_CMD="python"
+else
+    echo -e "${RED}✗ Python not found. Please install Python 3.8 or higher.${NC}"
     exit 1
 fi
 
-PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
-echo -e "${GREEN}✓ Found Python ${PYTHON_VERSION}${NC}"
+PYTHON_VERSION=$($PYTHON_CMD --version | cut -d' ' -f2)
+echo -e "${GREEN}✓ Found Python ${PYTHON_VERSION} (using ${PYTHON_CMD})${NC}"
 
 # Try to install/use uv (fast package manager)
 USE_UV=false
@@ -114,10 +126,6 @@ opt-level = 3
 lto = true
 codegen-units = 1
 EOF
-
-cd "${ZENO_ROOT}/zeno-py"
-source .venv/bin/activate
-maturin develop --release
 
 echo -e "${GREEN}✓ Cargo.toml created${NC}"
 
@@ -305,7 +313,6 @@ echo -e "${GREEN}✓ Rust source files created${NC}"
 # 6. Create Python package
 echo -e "\n${YELLOW}[6/7] Setting up Python package...${NC}"
 
-# FIXED: Point to correct Cargo.toml location
 cat > "${ZENO_ROOT}/zeno-py/pyproject.toml" << 'EOF'
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
@@ -443,14 +450,6 @@ class TemporalSplitter:
     def split(self, timestamps, train_end_date: datetime, test_start_date: datetime):
         """
         Create a temporal train/test split with validation
-        
-        Args:
-            timestamps: List of datetime objects
-            train_end_date: Last date in training set
-            test_start_date: First date in test set
-        
-        Raises:
-            ValueError: If test_start <= train_end (temporal leakage)
         """
         train_ts = int(train_end_date.timestamp())
         test_ts = int(test_start_date.timestamp())
@@ -482,23 +481,23 @@ from datetime import datetime, timedelta
 dates = [datetime(2024, 1, 1) + timedelta(days=i) for i in range(100)]
 values = [10.0 + i * 0.5 for i in range(100)]
 
-print("🌀 Zeno Quickstart Example")
+print(" Zeno Quickstart Example")
 print("=" * 50)
 
 # 1. Create lag features
-print("\n1️⃣  Creating lag features...")
+print("\n  Creating lag features...")
 window = zn.Window(lags=[1, 7, 14])
 lag_features = window.transform(values[:20])
 print(f"   Created {len(lag_features)} lag features")
 print(f"   Lag-1 (first 5): {[f for f in lag_features[0][:5]]}")
 
 # 2. Create rolling features
-print("\n2️⃣  Creating rolling mean...")
+print("\n  Creating rolling mean...")
 rolling_mean = window.rolling_mean(values, window=7)
 print(f"   Rolling mean (days 7-12): {rolling_mean[6:12]}")
 
 # 3. Temporal validation
-print("\n3️⃣  Temporal split validation...")
+print("\n  Temporal split validation...")
 splitter = zn.TemporalSplitter()
 
 train_end = datetime(2024, 3, 1)
@@ -509,7 +508,7 @@ print(f"   Train samples: {sum(train_mask)}")
 print(f"   Test samples: {sum(test_mask)}")
 
 # 4. Check for leakage
-print("\n4️⃣  Checking for temporal leakage...")
+print("\n  Checking for temporal leakage...")
 try:
     # This should pass
     splitter.validate_feature(datetime(2024, 2, 15))
@@ -521,7 +520,7 @@ except ValueError as e:
     print(f"   ✗ Leakage detected: {e}")
 
 # 5. Pipeline composition
-print("\n5️⃣  Building a pipeline...")
+print("\n  Building a pipeline...")
 pipeline = zn.Molecule([
     zn.Window(lags=[1, 7]),
     zn.Scale(method="robust")
@@ -609,12 +608,12 @@ cd "${ZENO_ROOT}/zeno-py"
 if [ "$USE_UV" = true ]; then
     echo -e "${BLUE}Creating virtual environment with uv...${NC}"
     uv venv
-    source .venv/bin/activate
+    source "$VENV_ACTIVATE"
     uv pip install maturin
 else
     echo -e "${BLUE}Creating virtual environment with standard venv...${NC}"
-    python3 -m venv .venv
-    source .venv/bin/activate
+    $PYTHON_CMD -m venv .venv
+    source "$VENV_ACTIVATE"
     pip install --upgrade pip
     pip install maturin
 fi
@@ -627,13 +626,13 @@ echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━�
 echo -e "${GREEN}✨ Zeno setup complete!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-echo -e "\n📂 Project structure created in: ${BLUE}${ZENO_ROOT}${NC}"
-echo -e "\n🚀 Quick start:"
+echo -e "\n Project structure created in: ${BLUE}${ZENO_ROOT}${NC}"
+echo -e "\n Quick start:"
 echo -e "   ${YELLOW}cd ${ZENO_ROOT}/zeno-py${NC}"
-echo -e "   ${YELLOW}source .venv/bin/activate${NC}"
-echo -e "   ${YELLOW}python ../examples/quickstart.py${NC}"
+echo -e "   ${YELLOW}source ${VENV_ACTIVATE}${NC}"
+echo -e "   ${YELLOW}${PYTHON_CMD} ../examples/quickstart.py${NC}"
 
-echo -e "\n🧪 Run tests:"
+echo -e "\n Run tests:"
 if [ "$USE_UV" = true ]; then
     echo -e "   ${YELLOW}uv pip install pytest pytest-benchmark${NC}"
 else
@@ -641,9 +640,9 @@ else
 fi
 echo -e "   ${YELLOW}pytest ../tests -v${NC}"
 
-echo -e "\n📚 Next steps:"
+echo -e "\n Next steps:"
 echo -e "   1. Review the architecture in ${ZENO_ROOT}/zeno-core/src/"
 echo -e "   2. Run the quickstart example"
 echo -e "   3. Check benchmarks/ for performance comparisons"
 
-echo -e "\n${BLUE}Happy building! 🌀${NC}\n"
+echo -e "\n${BLUE}Happy building! ${NC}\n"

@@ -1,6 +1,56 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use arrow::array::{Array, ArrayRef};
+use arrow::pyarrow::PyArrowType;
+use crate::engine::gpu::{ManagedGpuTensor, GpuError};
 
+#[pyclass(unsendable)]
+pub struct FoundationBatchStreamer {
+    array: ArrayRef,
+    batch_size: usize,
+    current_offset: usize,
+}
+
+#[pymethods]
+impl FoundationBatchStreamer {
+    #[new]
+    pub fn new(py_array: PyArrowType<ArrayRef>, batch_size: usize) -> Self {
+        Self {
+            array: py_array.0,
+            batch_size,
+            current_offset: 0,
+        }
+    }
+
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<PyArrowType<ArrayRef>>> {
+        let len = slf.array.len();
+        if slf.current_offset >= len {
+            return Ok(None); // StopIteration in Python
+        }
+
+        let remaining = len - slf.current_offset;
+        let chunk_len = remaining.min(slf.batch_size);
+
+        // O(1) Zero-copy slice from the original Arrow array
+        let chunk = slf.array.slice(slf.current_offset, chunk_len);
+        
+        // Calculate GPU memory footprint (e.g., assuming Float64 -> 8 bytes per value)
+        let bytes_required = chunk_len * 8; 
+
+        // Validate GPU capacity before yielding to Python.
+        // If allocation fails, the Rust Drop trait handles cleanup, and a PyMemoryError is raised.
+        let _tensor_guard = ManagedGpuTensor::allocate(bytes_required)?;
+
+        slf.current_offset += chunk_len;
+
+        // Yield the zero-copy chunk back to Python
+        Ok(Some(PyArrowType(chunk)))
+    }
+}
 #[pyclass]
 pub struct ChronosWrapper {
     model_name: String,

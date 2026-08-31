@@ -1,4 +1,48 @@
 use pyo3::prelude::*;
+use pyo3::exceptions::PyRuntimeError;
+use pyo3_polars::PyDataFrame;
+use polars::prelude::*;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum PolarsFFIError {
+    #[error("Polars execution failed: {0}")]
+    Polars(#[from] PolarsError),
+}
+
+impl From<PolarsFFIError> for PyErr {
+    fn from(err: PolarsFFIError) -> PyErr {
+        PyRuntimeError::new_err(err.to_string())
+    }
+}
+
+#[pyfunction]
+pub fn safe_rolling_mean(
+    pydf: PyDataFrame,
+    time_col: &str,
+    value_col: &str,
+    window_size: &str,
+) -> PyResult<PyDataFrame> {
+    // Safely unwrap the PyDataFrame into a native Rust DataFrame
+    let df: DataFrame = pydf.into();
+
+    // Construct and execute the LazyFrame expression natively in Rust
+    let result = df.lazy()
+        .with_columns([
+            col(value_col)
+                .rolling_mean(RollingOptions {
+                    window_size: Duration::parse(window_size),
+                    window_by: Some(time_col.into()),
+                    ..Default::default()
+                })
+                .alias("rolling_mean")
+        ])
+        .collect()
+        .map_err(PolarsFFIError::from)?; // Safe error propagation
+
+    // Safely wrap back into PyDataFrame for memory-safe transfer
+    Ok(PyDataFrame(result))
+}
 
 #[pyclass]
 pub struct PolarsWindowOp {
