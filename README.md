@@ -64,21 +64,19 @@ Zeno does not claim zero allocation for derived features. Rolling means, EMA, an
 **1. Memory Layer**
 > `pyarrow.Table` / `polars.DataFrame`
 *The entry point for all time series data, ensuring memory is mapped, not copied.*
-&nbsp;&nbsp;&nbsp;&nbsp;⬇
 
 **2. Rust Engine** (`zeno-core`)
 > **Core processing with extreme performance and memory safety.**
 *   **`arrow_ops.rs` & `window.rs`**: O(1) lag generation returning `ChunkedArray` slices.
 *   **`polars_ops.rs`**: Zero-copy rolling window and EMA calculations via native expressions.
 *   **`temporal.rs`**: Strict monotonicity and temporal lookahead validators.
-&nbsp;&nbsp;&nbsp;&nbsp;⬇
+
 
 **3. Python Bindings & Helpers** (`zero_copy.py`)
 > **Safe FFI transitions and zero-copy bridges.**
 *   **Transformation**: `arrow_lag()`, `generate_lag()`, `zero_copy_temporal_split()`
 *   **Validation**: `arrow_chunked_value_hash()`, `arrow_feature_fingerprint()`
 *   **Deep Learning**: `zero_copy_numpy_view()`, `TensorBridge`
-&nbsp;&nbsp;&nbsp;&nbsp;⬇
 
 **4. Application Layer** 
 > **Enterprise-grade ML orchestration and foundation model streaming.**
@@ -202,9 +200,11 @@ table = pa.table({
 })
 
 aw = ArrowWindow(lags=[1, 7, 30], rolling=[7])
-table_with_lags = aw.create_lags(table, "value", [1, 7, 30])  # zeno/zeno-py/zeno/advanced.py:43
+table_with_lags = aw.create_lags(table, "value", [1, 7, 30])  
 table_with_all = aw.transform(table, "value")                 # lags + rolling
+
 print(table_with_all.column_names)
+
 # ['timestamp', 'value', 'value_lag_1', 'value_lag_7', 'value_lag_30', 'value_rolling_7']
 ```
 
@@ -294,7 +294,8 @@ table = pa.table({
     "value": [float(i) for i in range(8)],
 })
 detector.register_training_frame(table.slice(0,4), "timestamp", "value", "train")
-detector.check_test_frame(table.slice(4,4), "timestamp", "value", "clean")  # {}
+detector.check_test_frame(table.slice(4,4), "timestamp", "value", "clean")
+  
 # detector.check_test_frame(table.slice(2,4), "timestamp", "value", "overlap")  # raises LEAKAGE DETECTED
 ```
 
@@ -376,15 +377,15 @@ Zeno's contract is narrow and explicit (`zeno/zeno-py/zeno/zero_copy.py`):
 
 Concrete mechanisms:
 
-| Operation | How zero-copy is achieved | Where |
-|---|---|---|
-| Arrow lag | `nulls(lag) + ChunkedArray.slice(0, n-lag)` | `zero_copy.py` |
-| Polars temporal split | `assert_sorted_by` + `df.slice(0, n_train)` / `df.slice(n_train)` + `search_sorted` for cutoff indices | `zero_copy.py`, `zero_copy.py`, `zero_copy.py` |
-| Arrow window view | `table.slice(offset, length)` | `zero_copy.py` |
-| Polars window view | `df.slice(offset, length)` | `zero_copy.py` |
-| Buffer hash | `memoryview(buffer)[offset*width : offset*width+len*width]` + null bitmap | `zero_copy.py`, `zero_copy.py` |
-| Tensor view | `chunk(0).to_numpy(zero_copy_only=True)` then `torch.from_numpy` | `zero_copy.py`, `foundation.py` |
-| Context window | `FoundationBatchStreamer` slices `ArrayRef` via `array.slice` | `zeno-core/src/engine/foundation.rs` |
+| Operation | How zero-copy is achieved |
+|---|---|
+| Arrow lag | `nulls(lag) + ChunkedArray.slice(0, n-lag)` 
+| Polars temporal split | `assert_sorted_by` + `df.slice(0, n_train)` / `df.slice(n_train)` + `search_sorted` for cutoff indices |
+| Arrow window view | `table.slice(offset, length)` |
+| Polars window view | `df.slice(offset, length)` |
+| Buffer hash | `memoryview(buffer)[offset*width : offset*width+len*width]` + null bitmap |
+| Tensor view | `chunk(0).to_numpy(zero_copy_only=True)` then `torch.from_numpy` |
+| Context window | `FoundationBatchStreamer` slices `ArrayRef` via `array.slice` |
 
 ---
 
